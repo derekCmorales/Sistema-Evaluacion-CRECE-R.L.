@@ -2,40 +2,42 @@ schema: spec-driven
 
 context: |
   Proyecto: Sistema Evaluación CRECE R.L. — Cooperativa CRECE Guatemala, R.L.
-  Repo greenfield (pnpm monorepo). NO copiar código del MVP local CRECE-MVP.
+  Repo greenfield (pnpm monorepo). NO copiar código de apps del MVP local CRECE-MVP.
+  El conocimiento de negocio SÍ aplica: docs/contexto.md y openspec/specs/.
 
   Stack:
-  - apps/web: Next.js 16.3.6 (latest estable), React 19.3.0, TypeScript 7.0.2, Tailwind 4.3.3
-  - apps/api: NestJS 12.0.4 (latest estable), TypeScript 7.0.2, build vía tsc
-  - packages/shared: tipos mínimos (@crece/shared)
+  - apps/web: Next.js 16.3.6, React 19.3.0, TypeScript 7.0.2, Tailwind 4.3.3
+  - apps/api: NestJS 12.0.4, TypeScript 7.0.2, build vía tsc
+  - packages/domain: motor, política, checklist, puertos (sin Nest)
+  - packages/application: RBAC y casos de uso
+  - packages/shared: tipos, labels, errores
   - pnpm 12.5.1, Node >= 22 (Docker node:24-alpine)
-  - PostgreSQL 18 vía Docker Compose (volumen /var/lib/postgresql; ver docs/docker.md)
-  - Peers y auditoría npm: docs/stack.md
-  - Flujo de trabajo: docs/README.md → docs/como-trabajar.md
-  - Diagramas: docs/diagramas/*.md (Mermaid). PNG solo archivo visual.
+  - PostgreSQL 18 vía Docker Compose (volumen /var/lib/postgresql)
+  - Prisma schema en apps/api/prisma/ (runtime de operaciones aún no cableado)
+  - Peers: docs/stack.md
+  - Flujo: docs/README.md → docs/contexto.md → docs/como-trabajar.md
+  - Diagramas: docs/diagramas/*.md (Mermaid)
 
   Dominio:
-  - Captación y evaluación de crédito; persona central (Person); operaciones N.
-  - Tres folders: identidad (post-aprobación), operación, custodia legal.
-  - Autorización configurable: bajo umbral ref. Q100k → BRANCH_HEAD + DELEGATED_AUTHORIZER (distintos; preparador ≠ delegado);
-    en/ sobre umbral → Consejo con quórum. Outcomes: APPROVE, APPROVE_WITH_CHANGES, REJECT, RETURN + DecisionLog.
-  - Sin credit score; IA solo asiste (puertos LlmAssistant, OcrProvider) — no implementados en bootstrap.
-  - Cálculos financieros determinísticos; reglas duras configurables; config versionada en DB (futuro).
+  - Captación y evaluación de crédito; persona central; operaciones N.
+  - Tres folders: identidad (post-aprobación), operación, custodia.
+  - Autorización: bajo umbral → BRANCH_HEAD + DELEGATED_AUTHORIZER (distintos; preparador ≠ delegado);
+    en/sobre umbral → Consejo con quórum. Outcomes: APPROVE, APPROVE_WITH_CHANGES, REJECT, RETURN.
+  - Sin credit score; IA solo asiste (puertos LlmAssistant, OcrProvider) — no implementados.
+  - Cálculos determinísticos; reglas duras configurables; factores sin pesos.
 
   Convenciones:
-  - Interfaces de puertos SIN prefijo I (Clean Code).
+  - Interfaces de puertos SIN prefijo I.
   - UI labels es-GT; código en inglés técnico.
-  - OpenSpec: propose → apply → archive/sync. Ramas + PR a main.
-  - Documentación en español en docs/, AGENTS.md, README.md.
-
-  Diagramas de diseño: docs/diagramas/ (Documento 1).
+  - OpenSpec: propose → apply → archive/sync.
+  - Documentación en español.
 
 rules:
   proposal:
     - Incluir sección "No objetivos" y límites de IA (asistencia, no decisión).
     - Referenciar capa domain/application/infrastructure para cambios de API.
   tasks:
-    - Tareas acotadas; indicar app (web/api/shared) y si requiere migración DB.
+    - Tareas acotadas; indicar paquete (web/api/domain/application/shared) y si requiere migración DB.
   spec:
     - Ubiquitous language alineado a docs/glosario.md.
 
@@ -43,7 +45,7 @@ operations:
   apply:
     guidance:
       - Respetar dependency rule; no importar infra desde domain.
-      - Verificar pnpm build antes de cerrar tareas de infra.
+      - Verificar pnpm test && pnpm build antes de cerrar tareas de dominio.
   archive:
     guidance:
       - Actualizar docs/ si el cambio altera autorización, stack o compose.

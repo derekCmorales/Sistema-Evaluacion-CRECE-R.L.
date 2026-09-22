@@ -1,5 +1,10 @@
 # Capa infrastructure
 
-Adaptadores concretos: PostgreSQL (ORM por definir), almacenamiento de objetos, proveedores OCR/LLM, render PDF, notificaciones.
+Adaptadores concretos (fases posteriores a este change):
 
-Ningún adaptador debe ser importado desde `domain/`. Inyección vía módulos Nest en fases posteriores.
+- Prisma + PostgreSQL: esquema en `apps/api/prisma/schema.prisma`
+- Object storage (R2), OCR, LLM, PDF, notificaciones
+
+Ningún adaptador se importa desde `@crece/domain`. Inyección vía módulos Nest.
+
+Hoy la API de prospectos usa memoria de proceso (`InMemoryProspectStore`) para demostrar el contrato público.

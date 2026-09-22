@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ProspectsController } from "./prospects.controller";
+import { InMemoryProspectStore } from "./in-memory-prospect.store";
 
-/** Bounded context: personas/prospectos (origen landing o interno). */
 @Module({
   controllers: [ProspectsController],
+  providers: [InMemoryProspectStore],
 })
 export class ProspectsModule {}

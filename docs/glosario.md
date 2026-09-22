@@ -9,11 +9,27 @@ Términos de negocio (es-GT) ↔ identificadores técnicos (inglés).
 | Operación (folder azul) | `Operation` |
 | Folder natural (custodia) | `CustodyFolder` |
 | Fiador | `Guarantor` |
-| Veredicto / voto | `Verdict` / outcome de autorización |
+| Casilla checklist | `ChecklistItem` |
+| Evaluación financiera | `FinancialAssessment` |
+| Resultado de cálculo | `CalcResult` |
+| Factor de decisión (chip) | `DecisionFactor` |
+| Regla dura | `HardRule` / `HardRuleHit` |
+| Veredicto / voto | `Verdict` |
 | Bitácora de decisión | `DecisionLogEntry` |
+| Bitácora de cambios | `AuditEntry` |
 | Asistencia IA | `AiAssistance` / `AiAlert` |
-| Jefatura de agencia | cargo `BRANCH_HEAD` |
-| Autorizador delegado | cargo `DELEGATED_AUTHORIZER` |
-| Consejo de administración | cargos `COUNCIL_MEMBER` + quórum |
+| Documento generado | `GeneratedDocument` + `DocumentTemplate` |
+| Captación | `SavingsOperation` |
+| Usuario | `User` |
+| Cargo | `Office` |
+| Permiso | unión de cargos (`hasPermission`) |
+| Política de autorización | `AuthorizationPolicy` |
+| Asesor financiero | `ADVISOR` |
+| Jefatura de agencia | `BRANCH_HEAD` |
+| Autorizador delegado | `DELEGATED_AUTHORIZER` |
+| Consejo de administración | `COUNCIL_MEMBER` + quórum |
+| Asistencia administrativa | `ADMIN_ASSISTANT` |
+| Comisión de Vigilancia | `OVERSIGHT` |
+| Administrador | `SYSTEM_ADMIN` |
 
-Colores de folder en UI futura: naranja identidad, azul operación, natural custodia — alineado a marca CRECE (`DESIGN.md`).
+Colores de folder: naranja identidad, azul operación, natural custodia — `DESIGN.md`.

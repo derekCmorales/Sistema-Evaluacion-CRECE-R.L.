@@ -1,13 +1,11 @@
-# Capa application
+# Capa application (Nest)
 
-Casos de uso (orquestación): coordinan dominio + puertos. Sin dependencias de NestJS en el núcleo — los módulos en `src/modules/` adaptan HTTP a use cases.
+Los casos de uso puros viven en `@crece/application` (`packages/application`).
 
-Ejemplos futuros (no implementados en bootstrap):
+Los módulos HTTP en `src/modules/` adaptan REST a esos casos:
 
-- `CreateProspectFromPublicForm`
-- `SubmitOperationForReview`
-- `RunReviewAssistance`
-- `CastAuthorizationVote`
-- `ResolveCouncilDecision`
+- `parsePublicProspect` / `toProspectPerson`
+- `prepareVerdict` / `summarizeAuthorization`
+- `hasPermission` (RBAC deny-by-default)
 
-Regla: deny-by-default en permisos; la política de autorización viene de `AuthorizationPolicy` + configuración versionada.
+Regla: deny-by-default; la política viene de `AuthorizationPolicy` + config versionada.

@@ -20,7 +20,7 @@ cp .env.example .env
 docker compose up -d db
 docker compose ps   # db healthy
 pnpm install
-pnpm --filter @crece/shared build
+pnpm --filter @crece/shared --filter @crece/domain --filter @crece/application build
 pnpm dev:api        # http://localhost:3001/health
 pnpm dev:web        # http://localhost:3000
 curl -s http://localhost:3001/health

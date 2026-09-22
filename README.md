@@ -2,7 +2,7 @@
 
 Monorepo greenfield para **Cooperativa CRECE Guatemala, R.L.**: captación y evaluación de crédito (Next.js + NestJS + PostgreSQL).
 
-Documentación en orden: **[docs/README.md](./docs/README.md)** (índice e2e).
+Documentación en orden: **[docs/README.md](./docs/README.md)**. Contexto de negocio: **[docs/contexto.md](./docs/contexto.md)**.
 
 ## Requisitos
 
@@ -15,45 +15,32 @@ Documentación en orden: **[docs/README.md](./docs/README.md)** (índice e2e).
 ```bash
 cp .env.example .env
 pnpm install
-pnpm --filter @crece/shared build
+pnpm --filter @crece/shared --filter @crece/domain --filter @crece/application build
 
-# 1) Postgres
 pnpm compose:db
-# 2) API y web en el host
 pnpm dev:api          # http://localhost:3001/health
 pnpm dev:web          # http://localhost:3000
+pnpm test             # dominio + application + shared
 ```
 
 ```bash
 curl -s http://localhost:3001/health
-# {"status":"ok","service":"crece-api",...}
+curl -s http://localhost:3001/approvals/policy
+curl -s -X POST http://localhost:3001/operations/calc \
+  -H 'content-type: application/json' \
+  -d '{"amount":40000,"termMonths":24,"purpose":"Capital de trabajo ferretería","assessment":{"monthlySales":45000,"monthlyIncome":18000,"monthlyExpenses":9000,"existingDebtPayment":1500,"guaranteeValue":80000}}'
 ```
 
-**Todo en Docker** (build de imágenes + healthchecks encadenados):
-
-```bash
-pnpm compose:dev
-# equivale a: docker compose --profile dev up --build
-```
-
-Detalle de servicios, volúmenes PG 18 y `.env`: **[docs/docker.md](./docs/docker.md)**.
-
-| Servicio Compose | Puerto | Health |
-|------------------|--------|--------|
-| `db` | 5432 | `pg_isready` |
-| `api` (perfil `dev`) | 3001 | `GET /health` |
-| `web` (perfil `dev`) | 3000 | `/` contiene CRECE |
-
-`docker compose up` **sin** `--profile dev` solo arranca **Postgres**.
+**Todo en Docker:** `pnpm compose:dev`. Detalle: **[docs/docker.md](./docs/docker.md)**.
 
 ## Estructura
 
 ```
-apps/web              Next.js 16.3.6
-apps/api              NestJS 12.0.4 (domain / application / infrastructure)
-packages/shared       Tipos compartidos
-docker-compose.yml    db + api + web
-docs/                 Índice e2e, stack, docker, dominio
-docs/diagramas/       Mermaid (agentes) + PNG Documento 1
-openspec/             Harness spec-driven
+apps/web                 Next.js 16.3.6
+apps/api                 NestJS 12.0.4 (adaptadores HTTP + prisma/)
+packages/domain          motor, política, checklist, puertos (testeable)
+packages/application     RBAC y casos de uso
+packages/shared          tipos y labels
+openspec/specs/          contrato de producto
+docs/                    índice e2e, contexto, uso, diagramas
 ```

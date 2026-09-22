@@ -2,7 +2,7 @@
 
 **Fuente de verdad para IA:** este directorio en Markdown + Mermaid. Los PNG del Documento 1 quedan como archivo visual; no son el insumo principal para implementar.
 
-Arquitectura de **este** repo (greenfield): `apps/web` (Next.js) + `apps/api` (NestJS, capas domain/application/infrastructure) + `packages/shared`. La landing es **otro repo**. Puertos **sin** prefijo `I`.
+Arquitectura de **este** repo (greenfield): `apps/web` (Next.js) + `apps/api` (NestJS) + `packages/domain` + `packages/application` + `packages/shared`. La landing es **otro repo**. Puertos **sin** prefijo `I`.
 
 Índice:
 

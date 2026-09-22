@@ -1,32 +1,41 @@
 # Requisitos resumidos
 
-Fuente: propuesta aprobada y reuniones con CRECE (2026). Este documento condensa el *qué*; el MVP local anterior es solo aprendizaje.
+Fuente: propuesta aprobada, reuniones CRECE 2026 y specs OpenSpec de este repo. El MVP local anterior es solo aprendizaje.
 
 ## Productos
 
-| Producto | Alcance bootstrap |
-|----------|-------------------|
-| Landing informativa | **Fuera de este repo**; envía prospectos vía API pública (futuro) |
-| Sistema de evaluación | **Este repo**: web + api + shared |
+| Producto | Alcance |
+|----------|---------|
+| Landing informativa | **Fuera de este repo**; `POST /public/prospects` |
+| Sistema de evaluación | **Este repo**: web + api + domain + application + shared |
 
-## Funcional must (fases posteriores al scaffold)
+## Must (producto; no todo está en runtime aún)
 
-- Registro de persona/prospecto y operaciones de crédito (y captación según producto).
-- Checklist dinámico (producto + garantía + fiador).
-- Evaluación financiera manual; cálculos automáticos (cuota, capacidad, cobertura, ROI).
-- Envío a revisión con asistencia IA (buró, coherencia, resumen) — sin decisión automática.
-- Autorización según [autorizacion.md](./autorizacion.md).
-- Bitácora consultable; folders de identidad post-aprobación; generación documental desde plantillas configurables.
+- Persona/prospecto y operaciones de crédito (fiador con evaluación propia).
+- Checklist dinámico + vigencias; N/A con razón; faltante visible.
+- Evaluación financiera manual; motor (cuota, capacidad, cobertura, ROI, amortización).
+- Vocabulario de factores **sin pesos**.
+- Reglas duras + excepción justificada.
+- Autorización según [autorizacion.md](./autorizacion.md) + acta del Consejo.
+- Bitácora + auditoría old/new; folder identidad post-aprobación.
+- IA en revisión (puertos; no implementada).
+- Documentos desde plantillas aprobadas por la cooperativa.
+- Tablero de 6 semáforos y recordatorios de espera.
+- RBAC por cargos acumulables.
 
-## Restricciones explícitas
+**Ya ejecutable aquí:** motor, checklist, política, RBAC unitario, contrato de prospecto, esquema Prisma.
 
-- No integración con el core contable CENSYT (nivel B descartado); rodear con datos propios.
-- No desembolsos, cobros ni movimiento de fondos.
-- No puntaje / escala 85-70-60 / recomendación automática de aprobar.
-- Datos reales solo en producción de la cooperativa; desarrollo anonimizado.
+## Should
 
-## No objetivos del bootstrap actual
+- Flujo completo de captaciones (ahorro / plazo fijo) y calendario 30/15/5.
 
-- OCR, LLM, R2, PDF renderer implementados.
-- Auth completo, RBAC y persistencia Prisma/Drizzle.
-- Pipeline semáforos y notificaciones.
+## Fuera
+
+- Integración CENSYT (nivel B), cobros, mora, cartera, portal de asociados.
+- Indicadores del core, score 85/70/60, recomendación automática.
+- Desembolsos o movimiento de fondos.
+
+## No objetivos de infraestructura en este change
+
+- OCR, LLM, R2, PDF renderer en runtime.
+- Auth de sesión y persistencia Prisma cableada a operaciones.

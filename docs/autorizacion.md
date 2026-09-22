@@ -1,37 +1,38 @@
 # Política de autorización (configurable)
 
-La cooperativa no debe quedar atada a un rol fijo “Gerencia” en código. La **AuthorizationPolicy** resuelve la ruta según monto, cargos y configuración versionada en base de datos.
+La cooperativa no debe quedar atada a un rol fijo “Gerencia” en código. `AuthorizationPolicy` resuelve la ruta según monto, cargos y configuración versionada.
 
-## Umbral de referencia (~Q100,000 GTQ)
+## Umbral de referencia (semilla ~Q100,000 GTQ)
 
 | Condición | Ruta | Quién participa |
 |-----------|------|-----------------|
-| Monto **menor** al umbral | `BRANCH_DUAL_SIGNATURE` | **Jefatura de agencia** (`BRANCH_HEAD`) + **Autorizador delegado** (`DELEGATED_AUTHORIZER`), dos firmas **distintas** |
-| Monto **≥** umbral | `COUNCIL_QUORUM` | Miembros del **Consejo** hasta alcanzar **quórum** configurado |
+| Monto **menor** al umbral | `BRANCH_DUAL_SIGNATURE` | `BRANCH_HEAD` + `DELEGATED_AUTHORIZER`, dos usuarios **distintos** |
+| Monto **≥** umbral | `COUNCIL_QUORUM` | `COUNCIL_MEMBER` hasta **quórum N** (semilla 3 de 3) |
 
-### Reglas de negocio documentadas
+## Invariantes
 
-1. Quien **armó el caso** (preparó la operación) **no puede** votar ni firmar como Autorizador delegado.
-2. El umbral, el quórum (N de M) y los cargos válidos se cargan desde configuración — no constantes en código.
-3. **No existe puntaje** ni recomendación automática de aprobar/rechazar.
+1. Una persona cuenta **una sola vez** por operación (`assertOnePersonOnce`).
+2. Quien **originó** no ejerce `DELEGATED_AUTHORIZER` ni `COUNCIL_MEMBER` en ese caso. Sí puede ejercer `BRANCH_HEAD`.
+3. El veredicto persiste el **cargo ejercido**. El acta dice «Iván, en calidad de autorizador delegado».
+4. Consultar ≠ operar. El Consejo no captura.
+5. `APPROVE_WITH_CHANGES` exige monto o plazo modificado y recálculo.
+6. No se aprueba con alertas de IA sin `resolution`.
+7. Umbral, quórum y cargos salen de config — las constantes del repo son **semilla**.
 
-## Resultados posibles (outcomes)
-
-Etiquetas en UI (es-GT) ↔ código (`@crece/shared`):
+## Outcomes
 
 | UI | Código |
 |----|--------|
 | Aprobar | `APPROVE` |
-| Aprobar con cambios | `APPROVE_WITH_CHANGES` (p. ej. ajuste de monto o plazo con recálculo) |
+| Aprobar con cambios | `APPROVE_WITH_CHANGES` |
 | Rechazar | `REJECT` |
-| Devolver | `RETURN` (observaciones al asesor) |
+| Devolver | `RETURN` |
 
-Cada acción genera entrada en **bitácora append-only** (`DecisionLog`), con actor, timestamp y motivo cuando aplique.
+Cada acción genera `DecisionLog` append-only.
 
-## Implementación en repo
+## Implementación
 
-- Tipos y stub de dominio: `apps/api/src/domain/policies/authorization-policy.ts`
-- Endpoint informativo (bootstrap): `GET /approvals/policy`
-- Diagramas: [08-secuencia-aprobacion.png](./diagramas/08-secuencia-aprobacion.png), [02-actividades-flujo.png](./diagramas/02-actividades-flujo.png)
-
-Pendientes con el cliente (no bloqueantes del scaffold): formalizar quórum exacto, empates y acta del Consejo.
+- Dominio: `packages/domain/src/verdict-policy.ts`
+- Tipos / semilla: `packages/shared` `DEFAULT_AUTHORIZATION_POLICY`
+- HTTP: `GET /approvals/policy`, `POST /approvals/resolve`
+- Spec: `openspec/specs/authorization-policy/spec.md`

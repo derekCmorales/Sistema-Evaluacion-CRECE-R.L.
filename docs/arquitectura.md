@@ -9,44 +9,52 @@ Monorepo **pnpm** para Cooperativa CRECE Guatemala, R.L. — sistema interno de 
 │ Landing       │ ─────────────► │ apps/web         │
 │ (repo aparte) │   prospecto    │ Next.js App Router│
 └──────────────┘                 └────────┬─────────┘
-                                          │ REST (futuro)
+                                          │ REST
                                  ┌────────▼─────────┐
-                                 │ apps/api          │
-                                 │ NestJS            │
-                                 │ domain / app / infra│
+                                 │ apps/api NestJS   │
+                                 │ modules → application → domain
                                  └────────┬─────────┘
                                           │
                                  ┌────────▼─────────┐
-                                 │ PostgreSQL        │
+                                 │ PostgreSQL 18     │
                                  └──────────────────┘
 ```
 
-Servicios externos (producción, **puertos documentados, no implementados** en bootstrap): almacenamiento de objetos, OCR, embeddings, LLM de asistencia.
+```
+packages/shared        tipos, labels, errores
+packages/domain        motor, estados, política, checklist, puertos
+packages/application   RBAC, parsePublicProspect, prepareVerdict
+apps/api               adaptadores HTTP + (futuro) Prisma
+apps/web               UI es-GT, sin reglas de negocio
+```
+
+Servicios externos (producción, **puertos documentados, no implementados**): object storage, OCR, embeddings, LLM de asistencia, PDF.
 
 ## Regla de dependencias
 
-`presentation (modules)` → `application` → `domain` ← `infrastructure`
+`modules (Nest)` → `@crece/application` → `@crece/domain` ← infrastructure
 
-- **domain**: entidades, políticas, puertos (`interface` sin prefijo `I`), servicios de dominio puros.
-- **application**: casos de uso; orquestan puertos.
+- **domain**: entidades, políticas, puertos (`interface` sin prefijo `I`), servicios puros. Vitest.
+- **application**: casos de uso; orquestan puertos. Vitest.
 - **infrastructure**: ORM, R2, proveedores IA, PDF.
-- **apps/web**: UI en español (es-GT); sin reglas de negocio en componentes.
+- **apps/web**: UI; llama a la API. No importa `@crece/domain` para decidir crédito.
 
-## Módulos API (bootstrap)
+## Módulos API
 
-| Módulo Nest | Bounded context |
-|-------------|-----------------|
-| `health` | Salud del servicio |
-| `prospects` | Personas / prospectos |
-| `operations` | Operaciones, checklist, evaluación |
-| `approvals` | Autorización y bitácora |
+| Módulo Nest | Bounded context | Estado |
+|-------------|-----------------|--------|
+| `health` | Salud | `GET /health` |
+| `catalog` | Cargos, factores, semillas | `GET /catalog` |
+| `prospects` | Personas / prospectos | `POST /public/prospects` (memoria) |
+| `operations` | Checklist + cálculo | `GET /operations/checklist`, `POST /operations/calc` |
+| `approvals` | Autorización | `GET /approvals/policy`, `POST /approvals/resolve` |
 
-## Principios (resumen)
+## Principios
 
-1. **IA asiste; no decide.** Puertos `LlmAssistant`, `OcrProvider` — sin veredicto automático.
-2. **Tres capas de decisión**, no una fórmula: cálculo determinístico, reglas duras, apoyo IA en revisión.
-3. **Sin score de crédito** ni bandas de riesgo automáticas.
-4. **Trazabilidad** append-only en decisiones y auditoría de cambios.
-5. **Configuración versionada** en DB para umbrales, vocabulario de factores y plantillas.
+1. IA asiste; no decide. Puertos `LlmAssistant`, `OcrProvider`.
+2. Tres capas de decisión, no una fórmula.
+3. Sin score ni bandas de riesgo.
+4. Trazabilidad append-only.
+5. Configuración versionada en DB.
 
-Ver diagramas en [diagramas/README.md](./diagramas/README.md). Compose: [docker.md](./docker.md).
+Prisma: `apps/api/prisma/schema.prisma` (PostgreSQL, cargos en `UserOffice`, veredictos y checklist relacionales). Runtime de operaciones aún no usa el cliente Prisma.

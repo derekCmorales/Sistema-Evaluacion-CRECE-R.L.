@@ -40,4 +40,4 @@ npm view @nestjs/core dist-tags
 pnpm outdated -r
 ```
 
-No hay Prisma/ORM en el bootstrap. `DATABASE_URL` se documenta para Compose (`docs/docker.md`).
+No hay cliente Prisma cableado al runtime todavía. El **esquema** está en `apps/api/prisma/schema.prisma` (PostgreSQL). `DATABASE_URL` se documenta para Compose (`docs/docker.md`).

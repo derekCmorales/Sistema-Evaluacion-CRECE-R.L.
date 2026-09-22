@@ -9,6 +9,7 @@
     "dev:api": "pnpm --filter @crece/api dev",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
+    "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r run typecheck",
     "compose:db": "docker compose up -d db",
     "compose:dev": "docker compose --profile dev up --build"

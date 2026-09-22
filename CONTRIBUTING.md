@@ -15,7 +15,7 @@
 
 Checklist antes de pedir revisión:
 
-- [ ] `pnpm install` y `pnpm build` y `pnpm lint` pasan en raíz.
+- [ ] `pnpm install` y `pnpm test` y `pnpm build` y `pnpm lint` pasan en raíz.
 - [ ] Si toca API o Compose: `curl localhost:3001/health` y, si aplica, `docker compose ps` (`db` healthy).
 - [ ] Sin secretos ni PII en el diff.
 - [ ] Interfaces nuevas **sin** prefijo `I`.

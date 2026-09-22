@@ -6,9 +6,14 @@ RUN corepack enable && corepack prepare pnpm@12.5.1 --activate
 FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/shared packages/shared
+COPY packages/domain packages/domain
+COPY packages/application packages/application
 COPY apps/api apps/api
 RUN pnpm install --filter @crece/api...
-RUN pnpm --filter @crece/shared build && pnpm --filter @crece/api build
+RUN pnpm --filter @crece/shared build \
+  && pnpm --filter @crece/domain build \
+  && pnpm --filter @crece/application build \
+  && pnpm --filter @crece/api build
 RUN pnpm --filter @crece/api deploy --prod /deploy
 
 FROM node:24-alpine AS runner

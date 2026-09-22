@@ -1,13 +1,14 @@
 # Cómo trabajar en este repo
 
-Guía para el equipo y para agentes. Complementa `AGENTS.md` (contrato de dominio) y `CONTRIBUTING.md` (checklist de PR).
+Guía para el equipo y para agentes. Complementa `AGENTS.md` y `CONTRIBUTING.md`.
 
 ## 1. Leer primero
 
-1. `AGENTS.md` — límites: IA no decide, sin score, interfaces sin `I`, OpenSpec.
-2. `docs/stack.md` — versiones reales (Next 16.3.6, Nest 12.0.4).
-3. `docs/autorizacion.md` — `AuthorizationPolicy`.
-4. `docs/diagramas/README.md` — **Mermaid es la fuente para agentes**; PNG es archivo visual del Documento 1.
+1. `docs/contexto.md` — negocio e invariantes.
+2. `AGENTS.md` — límites: IA no decide, sin score, interfaces sin `I`.
+3. `docs/stack.md` — Next 16.3.6, Nest 12.0.4, TS 7.
+4. `openspec/specs/` — contrato de producto.
+5. `docs/diagramas/README.md` — Mermaid para agentes.
 
 ## 2. Flujo diario
 
@@ -15,53 +16,45 @@ Guía para el equipo y para agentes. Complementa `AGENTS.md` (contrato de domini
 rama desde main
     → (si hay producto) openspec-propose
     → código en la capa correcta
-    → pnpm install && pnpm build && pnpm lint
+    → pnpm test && pnpm build && pnpm lint
     → PR a main (español, checklist CONTRIBUTING)
     → (al cerrar el change) openspec-archive / sync
 ```
 
-- **pnpm only.** `corepack enable` usa `packageManager` = pnpm 12.5.1.
-- Ramas: `feat/<tema>` o `cursor/<descripcion>-<id>`.
-- Un PR = un tema. No mezclar docs de marca con un endpoint.
+- **pnpm only.** `corepack enable` → pnpm 12.5.1.
+- Un PR = un tema.
 
 ## 3. Dónde poner código
 
 | Qué | Dónde |
 |-----|--------|
 | UI, rutas App Router | `apps/web/app/` |
-| HTTP Nest (controllers) | `apps/api/src/modules/*` |
-| Casos de uso | `apps/api/src/application/` |
-| Entidades, políticas, **ports** | `apps/api/src/domain/` |
-| ORM, R2, OCR, LLM (cuando existan) | `apps/api/src/infrastructure/` |
-| Tipos compartidos | `packages/shared` |
-| Specs de producto | `openspec/changes/` luego `openspec/specs/` |
+| HTTP Nest | `apps/api/src/modules/*` |
+| Casos de uso / RBAC | `packages/application` |
+| Entidades, políticas, puertos, motor | `packages/domain` |
+| Tipos y labels | `packages/shared` |
+| Prisma | `apps/api/prisma/` |
+| Specs | `openspec/changes/` luego `openspec/specs/` |
 
 Regla: `modules → application → domain ← infrastructure`. El dominio no importa Nest ni Next.
 
 ## 4. OpenSpec
 
-Skills en `.cursor/skills/openspec-*` (también `.agents`, `.claude`, `.gemini`, `.opencode`).
-
-1. **propose** — diseño, no objetivos, tareas.
-2. **apply** — implementar el change.
-3. **archive / sync** — specs estables en `openspec/specs/`.
-
-Cambio de umbral, roles o outcomes **siempre** pasa por OpenSpec + `docs/autorizacion.md`.
+Skills en `.cursor/skills/openspec-*`. Cambio de umbral, cargos u outcomes **siempre** pasa por OpenSpec + `docs/autorizacion.md`.
 
 ## 5. Levantar el entorno
 
-Recorrido completo: [docker.md](./docker.md). Resumen:
-
 ```bash
-cp .env.example .env          # DATABASE_URL → localhost (API en el host)
+cp .env.example .env
 pnpm install
-pnpm --filter @crece/shared build
-pnpm compose:db               # docker compose up -d db
-pnpm dev:api                  # http://localhost:3001/health
-pnpm dev:web                  # http://localhost:3000
+pnpm --filter @crece/shared --filter @crece/domain --filter @crece/application build
+pnpm compose:db
+pnpm dev:api
+pnpm dev:web
+pnpm test
 ```
 
-Stack entero en contenedores: `pnpm compose:dev` (perfil Compose `dev`: `db` + `api` + `web` con healthchecks).
+Stack en contenedores: `pnpm compose:dev`. Detalle: [docker.md](./docker.md). Recorrido: [uso.md](./uso.md).
 
 ## 6. Qué no hacer
 

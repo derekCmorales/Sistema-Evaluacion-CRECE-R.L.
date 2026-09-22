@@ -14,10 +14,12 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "echo \"@crece/shared: sin linter en bootstrap\""
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "files": ["dist"],
   "devDependencies": {
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "3.2.4"
   }
 }
