@@ -1,0 +1,90 @@
+name: crece-eval
+
+# db: siempre (sin perfil). api y web: perfil `dev`.
+#   docker compose up -d db
+#   docker compose --profile dev up --build
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crece}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-crece_eval}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PG 18: VOLUME oficial es /var/lib/postgresql (no .../data).
+      - crece_pg_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-crece} -d ${POSTGRES_DB:-crece_eval}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    profiles: ["dev"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crece}:${POSTGRES_PASSWORD:-change-me-in-dev}@db:5432/${POSTGRES_DB:-crece_eval}
+      NODE_ENV: development
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3001/health | grep -q '\"status\":\"ok\"'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    profiles: ["dev"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/ | grep -q 'CRECE'",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 45s
+
+volumes:
+  crece_pg_data:

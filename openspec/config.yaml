@@ -1,32 +1,54 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Proyecto: Sistema Evaluación CRECE R.L. — Cooperativa CRECE Guatemala, R.L.
+  Repo greenfield (pnpm monorepo). NO copiar código de apps del MVP local CRECE-MVP.
+  El conocimiento de negocio SÍ aplica: docs/contexto.md y openspec/specs/.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Stack:
+  - apps/web: Next.js 16.3.6, React 19.3.0, TypeScript 7.0.2, Tailwind 4.3.3
+  - apps/api: NestJS 12.0.4, TypeScript 7.0.2, build vía tsc
+  - packages/domain: motor, política, checklist, puertos (sin Nest)
+  - packages/application: RBAC y casos de uso
+  - packages/shared: tipos, labels, errores
+  - pnpm 12.5.1, Node >= 22 (Docker node:24-alpine)
+  - PostgreSQL 18 vía Docker Compose (volumen /var/lib/postgresql)
+  - Prisma schema en apps/api/prisma/ (runtime de operaciones aún no cableado)
+  - Peers: docs/stack.md
+  - Flujo: docs/README.md → docs/contexto.md → docs/como-trabajar.md → docs/testing.md
+  - Diagramas: docs/diagramas/*.md (Mermaid). No agregar PNG.
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+  Dominio:
+  - Captación y evaluación de crédito; persona central; operaciones N.
+  - Tres folders: identidad (post-aprobación), operación, custodia.
+  - Autorización: bajo umbral → BRANCH_HEAD + DELEGATED_AUTHORIZER (distintos; preparador ≠ delegado);
+    en/sobre umbral → Consejo con quórum. Outcomes: APPROVE, APPROVE_WITH_CHANGES, REJECT, RETURN.
+  - Sin credit score; IA solo asiste (puertos LlmAssistant, OcrProvider) — no implementados.
+  - Cálculos determinísticos; reglas duras configurables; factores sin pesos.
+
+  Convenciones:
+  - Interfaces de puertos SIN prefijo I.
+  - UI labels es-GT; código en inglés técnico.
+  - OpenSpec: propose → apply → archive/sync.
+  - Documentación en español.
+
+rules:
+  proposal:
+    - Incluir sección "No objetivos" y límites de IA (asistencia, no decisión).
+    - Referenciar capa domain/application/infrastructure para cambios de API.
+  tasks:
+    - Tareas acotadas; indicar paquete (web/api/domain/application/shared) y si requiere migración DB.
+    - Toda tarea de comportamiento incluye la prueba (paquete y archivo) o no se considera hecha.
+  spec:
+    - Ubiquitous language alineado a docs/glosario.md.
+    - Sección Tests obligatoria; apuntar a la capa dueña de la regla (docs/testing.md).
+
+operations:
+  apply:
+    guidance:
+      - Respetar dependency rule; no importar infra desde domain.
+      - Verificar pnpm test && pnpm build antes de cerrar cualquier tarea de comportamiento.
+      - No sustituir tests con capturas ni con PNG.
+  archive:
+    guidance:
+      - Actualizar docs/ si el cambio altera autorización, stack, compose o la puerta de testing.

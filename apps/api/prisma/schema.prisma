@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Usuario de login. Cargos en UserOffice (1..n). No hay rol Gerencia.
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  offices      UserOffice[]
+}
+
+model UserOffice {
+  userId     String
+  officeCode String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@id([userId, officeCode])
+}
+
+model Person {
+  id                 String              @id @default(uuid())
+  fullName           String
+  phone              String
+  email              String?
+  dpi                String?             @unique
+  address            String?
+  status             String              @default("PROSPECT")
+  createdAt          DateTime            @default(now())
+  operations         Operation[]
+  savingsOperations  SavingsOperation[]
+  identityFolder     IdentityFolder?
+}
+
+model Operation {
+  id                    String            @id @default(uuid())
+  personId              String
+  person                Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  productType           String
+  guaranteeType         String
+  hasGuarantor          Boolean           @default(false)
+  guarantorJson         Json?
+  requestedAmount       Decimal           @db.Decimal(14, 2)
+  approvedAmount        Decimal?          @db.Decimal(14, 2)
+  currency              String            @default("GTQ")
+  termMonths            Int
+  approvedTermMonths    Int?
+  interestRate          Decimal?          @db.Decimal(7, 4)
+  purpose               String
+  state                 String            @default("DRAFT")
+  assessmentJson        Json?
+  guarantorAssessmentJson Json?
+  calcResultJson        Json?
+  hardRuleHitsJson      Json              @default("[]")
+  aiAssistanceJson      Json?
+  ocrArtifactsJson      Json?
+  opinionJson           Json?
+  returnComment         String?
+  submittedForReviewAt  DateTime?
+  minutesHtml           String?
+  createdBy             String
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  checklistItems        ChecklistItem[]
+  verdicts              Verdict[]
+  documents             DocumentAsset[]
+  decisionLogs          DecisionLogEntry[]
+  generatedDocuments    GeneratedDocument[]
+}
+
+model ChecklistItem {
+  id                  String    @id @default(uuid())
+  operationId         String
+  operation           Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  code                String
+  label               String
+  required            Boolean
+  status              String    @default("PENDING")
+  notApplicableReason String?
+  issuedAt            DateTime?
+  validityDays        Int?
+  critical            Boolean   @default(false)
+
+  @@unique([operationId, code])
+}
+
+model Verdict {
+  id                 String    @id @default(uuid())
+  operationId        String
+  operation          Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  byUserId           String
+  officeCode         String
+  decision           String
+  factors            String[]
+  reasonText         String
+  modifiedAmount     Decimal?  @db.Decimal(14, 2)
+  modifiedTermMonths Int?
+  at                 DateTime  @default(now())
+
+  @@index([operationId, byUserId])
+}
+
+model DocumentAsset {
+  id            String    @id @default(uuid())
+  operationId   String
+  operation     Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  checklistCode String
+  fileName      String
+  mimeType      String
+  storageKey    String
+  uploadedBy    String
+  uploadedAt    DateTime  @default(now())
+}
+
+model DecisionLogEntry {
+  id           String    @id @default(uuid())
+  operationId  String
+  operation    Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  action       String
+  actorUserId  String
+  actorOffice  String
+  detailsJson  Json
+  at           DateTime  @default(now())
+}
+
+model AuditEntry {
+  id            String   @id @default(uuid())
+  entityType    String
+  entityId      String
+  field         String
+  oldValue      String?
+  newValue      String?
+  action        String
+  byUserId      String
+  at            DateTime @default(now())
+  correlationId String?
+
+  @@index([entityType, entityId])
+  @@index([byUserId, at])
+}
+
+model ConfigEntry {
+  key       String @id
+  valueJson Json
+}
+
+/// Catálogo de chips del veredicto. SIN campo weight.
+model DecisionFactor {
+  id        String  @id @default(uuid())
+  code      String  @unique
+  label     String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+}
+
+model DocumentTemplate {
+  id                    String  @id @default(uuid())
+  code                  String  @unique
+  name                  String
+  version               Int     @default(1)
+  templateType          String
+  approvedByCooperative Boolean @default(false)
+  contentJson           Json?
+  active                Boolean @default(true)
+}
+
+model GeneratedDocument {
+  id              String     @id @default(uuid())
+  operationId     String?
+  operation       Operation? @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  savingsOpId     String?
+  templateCode    String
+  templateVersion Int
+  fileName        String
+  storageKey      String
+  dataSnapshot    Json
+  generatedBy     String
+  generatedAt     DateTime   @default(now())
+}
+
+model SavingsOperation {
+  id                String    @id @default(uuid())
+  personId          String
+  person            Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type              String
+  amount            Decimal   @db.Decimal(14, 2)
+  currency          String    @default("GTQ")
+  termMonths        Int?
+  maturesAt         DateTime?
+  beneficiariesJson Json      @default("[]")
+  state             String    @default("ACTIVE")
+  createdBy         String
+  createdAt         DateTime  @default(now())
+}
+
+model IdentityFolder {
+  id        String   @id @default(uuid())
+  personId  String   @unique
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  openedAt  DateTime @default(now())
+  iveStatus String   @default("PENDING")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model ChecklistTemplate {
+  id            String  @id @default(uuid())
+  productType   String
+  guaranteeType String
+  hasGuarantor  Boolean
+  version       Int     @default(1)
+  itemsJson     Json
+  active        Boolean @default(true)
+
+  @@unique([productType, guaranteeType, hasGuarantor, version])
+}
+
+model WatchlistCheck {
+  id            String   @id @default(uuid())
+  personId      String?
+  source        String
+  queryRef      String
+  result        String
+  checkedAt     DateTime @default(now())
+  checkedBy     String?
+  attachmentKey String?
+  notes         String?
+}
