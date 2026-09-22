@@ -15,8 +15,8 @@ context: |
   - PostgreSQL 18 vía Docker Compose (volumen /var/lib/postgresql)
   - Prisma schema en apps/api/prisma/ (runtime de operaciones aún no cableado)
   - Peers: docs/stack.md
-  - Flujo: docs/README.md → docs/contexto.md → docs/como-trabajar.md
-  - Diagramas: docs/diagramas/*.md (Mermaid)
+  - Flujo: docs/README.md → docs/contexto.md → docs/como-trabajar.md → docs/testing.md
+  - Diagramas: docs/diagramas/*.md (Mermaid). No agregar PNG.
 
   Dominio:
   - Captación y evaluación de crédito; persona central; operaciones N.
@@ -38,14 +38,17 @@ rules:
     - Referenciar capa domain/application/infrastructure para cambios de API.
   tasks:
     - Tareas acotadas; indicar paquete (web/api/domain/application/shared) y si requiere migración DB.
+    - Toda tarea de comportamiento incluye la prueba (paquete y archivo) o no se considera hecha.
   spec:
     - Ubiquitous language alineado a docs/glosario.md.
+    - Sección Tests obligatoria; apuntar a la capa dueña de la regla (docs/testing.md).
 
 operations:
   apply:
     guidance:
       - Respetar dependency rule; no importar infra desde domain.
-      - Verificar pnpm test && pnpm build antes de cerrar tareas de dominio.
+      - Verificar pnpm test && pnpm build antes de cerrar cualquier tarea de comportamiento.
+      - No sustituir tests con capturas ni con PNG.
   archive:
     guidance:
-      - Actualizar docs/ si el cambio altera autorización, stack o compose.
+      - Actualizar docs/ si el cambio altera autorización, stack, compose o la puerta de testing.

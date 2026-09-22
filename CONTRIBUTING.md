@@ -15,12 +15,14 @@
 
 Checklist antes de pedir revisión:
 
-- [ ] `pnpm install` y `pnpm test` y `pnpm build` y `pnpm lint` pasan en raíz.
+- [ ] `pnpm test` pasa en raíz. Si el PR cambia comportamiento, hay prueba **en la capa que posee la regla** ([docs/testing.md](./docs/testing.md)).
+- [ ] `pnpm install` y `pnpm build` y `pnpm lint` pasan en raíz.
 - [ ] Si toca API o Compose: `curl localhost:3001/health` y, si aplica, `docker compose ps` (`db` healthy).
 - [ ] Sin secretos ni PII en el diff.
 - [ ] Interfaces nuevas **sin** prefijo `I`.
-- [ ] Cambios de producto relevantes tienen propuesta OpenSpec (`openspec/changes/`).
-- [ ] Documentación actualizada si cambia stack, autorización o compose.
+- [ ] Cambios de producto relevantes tienen propuesta OpenSpec (`openspec/changes/`) **con sección Tests**.
+- [ ] Documentación actualizada si cambia stack, autorización, compose o la puerta de testing.
+- [ ] Sin PNG ni imágenes nuevas en el diff; diagramas en Mermaid.
 
 ## OpenSpec
 

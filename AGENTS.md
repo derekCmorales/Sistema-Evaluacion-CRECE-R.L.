@@ -20,6 +20,7 @@ Guía para **agentes de IA y desarrolladores**.
 8. Configurable en DB (umbrales, vocabulario, plantillas) — no constantes de negocio en código (las semillas van etiquetadas como seed).
 9. Cuando dudes entre bloquear o avisar, **avisa con excepción justificada**.
 10. Ningún dato del core contable CENSYT entra al sistema.
+11. **Siempre hay tests** en la capa de la regla antes del PR. Ver [`docs/testing.md`](./docs/testing.md). Una captura no sustituye aserciones. No agregar PNG: diagramas en Mermaid.
 
 ---
 
@@ -77,7 +78,7 @@ Invariantes (deben fallar en dominio, no solo en UI): `docs/contexto.md` y `open
 Ver [`docs/como-trabajar.md`](./docs/como-trabajar.md).
 
 ```bash
-pnpm test          # vitest en shared/domain/application
+pnpm test          # obligatorio; ver docs/testing.md
 pnpm build && pnpm lint
 ```
 
@@ -91,6 +92,7 @@ pnpm build && pnpm lint
 - Integración contable CENSYT (nivel B).
 - Lógica de negocio en componentes React.
 - Implementar OCR/LLM/R2 sin change OpenSpec.
+- PR de comportamiento sin tests de esa capa, o diagramas como imagen.
 
 ---
 
@@ -98,6 +100,7 @@ pnpm build && pnpm lint
 
 - Contexto: `docs/contexto.md`
 - Uso / API: `docs/uso.md`
+- Testing (siempre): `docs/testing.md`
 - Pantallas objetivo: `docs/pantallas.md`
 - Diagramas Mermaid: `docs/diagramas/README.md`
 - Marca: `DESIGN.md`

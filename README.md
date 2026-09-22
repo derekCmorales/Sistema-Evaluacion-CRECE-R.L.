@@ -2,7 +2,7 @@
 
 Monorepo greenfield para **Cooperativa CRECE Guatemala, R.L.**: captación y evaluación de crédito (Next.js + NestJS + PostgreSQL).
 
-Documentación en orden: **[docs/README.md](./docs/README.md)**. Contexto de negocio: **[docs/contexto.md](./docs/contexto.md)**.
+Documentación en orden: **[docs/README.md](./docs/README.md)**. Contexto: **[docs/contexto.md](./docs/contexto.md)**. Testing (siempre): **[docs/testing.md](./docs/testing.md)**.
 
 ## Requisitos
 
@@ -20,7 +20,7 @@ pnpm --filter @crece/shared --filter @crece/domain --filter @crece/application b
 pnpm compose:db
 pnpm dev:api          # http://localhost:3001/health
 pnpm dev:web          # http://localhost:3000
-pnpm test             # dominio + application + shared
+pnpm test             # obligatorio; ver docs/testing.md
 ```
 
 ```bash
@@ -42,5 +42,5 @@ packages/domain          motor, política, checklist, puertos (testeable)
 packages/application     RBAC y casos de uso
 packages/shared          tipos y labels
 openspec/specs/          contrato de producto
-docs/                    índice e2e, contexto, uso, diagramas
+docs/                    índice e2e, contexto, uso, testing, diagramas Mermaid
 ```

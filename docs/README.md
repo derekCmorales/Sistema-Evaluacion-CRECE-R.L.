@@ -14,10 +14,11 @@ Orden de lectura **e2e** (humano o agente). No saltar al código de features sin
 | 8 | [autorizacion.md](./autorizacion.md) | `AuthorizationPolicy`, umbral, invariantes |
 | 9 | [requisitos.md](./requisitos.md) | Must / should / fuera |
 | 10 | [uso.md](./uso.md) | Recorrido API y pantallas actuales |
-| 11 | [pantallas.md](./pantallas.md) | Mapa de UIs objetivo (IDs C-03, D-06, …) |
-| 12 | [glosario.md](./glosario.md) | Lenguaje ubicuo es-GT ↔ inglés técnico |
-| 13 | [diagramas/README.md](./diagramas/README.md) | Mermaid (fuente agentes); PNG = archivo visual |
-| 14 | [../DESIGN.md](../DESIGN.md) | Marca CRECE |
-| 15 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Ramas, checklist de PR |
+| 11 | [testing.md](./testing.md) | **Siempre** hay pruebas; pirámide y puerta de PR |
+| 12 | [pantallas.md](./pantallas.md) | Mapa de UIs objetivo (IDs C-03, D-06, …) |
+| 13 | [glosario.md](./glosario.md) | Lenguaje ubicuo es-GT ↔ inglés técnico |
+| 14 | [diagramas/README.md](./diagramas/README.md) | Mermaid (fuente agentes); no añadir PNG nuevos |
+| 15 | [../DESIGN.md](../DESIGN.md) | Marca CRECE |
+| 16 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Ramas, checklist de PR |
 
 OpenSpec: [`openspec/config.yaml`](../openspec/config.yaml) y [`openspec/specs/README.md`](../openspec/specs/README.md).

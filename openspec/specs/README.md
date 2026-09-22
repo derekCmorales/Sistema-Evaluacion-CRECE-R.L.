@@ -17,9 +17,11 @@ Specs **estables** del dominio CRECE, transferidas desde el conocimiento del MVP
 Flujo de evaluación: prospecto → operación → cálculo → reglas duras → revisión (IA) → autorización → post-aprobación.
 
 Estados: [13-estados-operation.md](../../docs/diagramas/13-estados-operation.md).
+Pruebas: cada spec tiene sección **Tests**; la puerta del repo está en [docs/testing.md](../../docs/testing.md).
 
 ## Cómo cambiar specs
 
-1. **openspec-propose** en `openspec/changes/<nombre>/`.
+1. **openspec-propose** en `openspec/changes/<nombre>/` (la propuesta lista Tests).
 2. Deltas en `specs/` dentro del change.
-3. Tras implementar: **sync** o **archive**.
+3. **apply** no cierra tareas si esas Tests no están verdes.
+4. Tras implementar: **sync** o **archive**.
