@@ -49,4 +49,4 @@ Servicios externos (producción, **puertos documentados, no implementados** en b
 4. **Trazabilidad** append-only en decisiones y auditoría de cambios.
 5. **Configuración versionada** en DB para umbrales, vocabulario de factores y plantillas.
 
-Ver diagramas en [docs/diagramas/README.md](./diagramas/README.md).
+Ver diagramas en [diagramas/README.md](./diagramas/README.md). Compose: [docker.md](./docker.md).

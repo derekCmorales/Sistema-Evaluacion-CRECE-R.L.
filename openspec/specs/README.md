@@ -12,7 +12,7 @@ Este directorio albergará specs **estables** del sistema (flujos acordados con 
 6. **Autorización** — ruta dual firma o Consejo según [docs/autorizacion.md](../../docs/autorizacion.md).
 7. **Post-aprobación** — folder identidad, generación documental, custodia.
 
-Estados detallados: diagrama [13-estados-operation.png](../../docs/diagramas/13-estados-operation.png).
+Estados detallados: [13-estados-operation.md](../../docs/diagramas/13-estados-operation.md) (Mermaid).
 
 ## Cómo añadir specs
 

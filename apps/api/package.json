@@ -10,6 +10,7 @@
     "lint": "tsc -p tsconfig.build.json --noEmit",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
+  "files": ["dist"],
   "dependencies": {
     "@crece/shared": "workspace:*",
     "@nestjs/common": "12.0.4",

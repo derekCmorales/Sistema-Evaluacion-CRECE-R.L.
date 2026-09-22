@@ -2,7 +2,7 @@
 
 Guía para **agentes de IA y desarrolladores** en este repositorio greenfield.
 
-**Empezar por:** [`docs/como-trabajar.md`](./docs/como-trabajar.md) (flujo diario) · [`docs/stack.md`](./docs/stack.md) (versiones) · [`docs/diagramas/README.md`](./docs/diagramas/README.md) (**Mermaid**, no PNG).
+**Empezar por:** [`docs/README.md`](./docs/README.md) (índice e2e) → [`docs/como-trabajar.md`](./docs/como-trabajar.md) → [`docs/stack.md`](./docs/stack.md) → [`docs/docker.md`](./docs/docker.md) → [`docs/diagramas/README.md`](./docs/diagramas/README.md) (**Mermaid**).
 
 Leer también `docs/arquitectura.md`, `docs/requisitos.md` y `docs/autorizacion.md`.
 
@@ -100,5 +100,7 @@ Ver el detalle en [`docs/como-trabajar.md`](./docs/como-trabajar.md). Resumen:
 
 - Diagramas **Mermaid**: `docs/diagramas/README.md` (PNG solo archivo visual)
 - Cómo trabajar: `docs/como-trabajar.md`
+- Docker / Compose: `docs/docker.md`
+- Índice docs: `docs/README.md`
 - Marca: `DESIGN.md`
 - Contexto OpenSpec: `openspec/config.yaml`

@@ -9,9 +9,9 @@ context: |
   - apps/api: NestJS 12.0.4 (latest estable), TypeScript 7.0.2, build vía tsc
   - packages/shared: tipos mínimos (@crece/shared)
   - pnpm 12.5.1, Node >= 22 (Docker node:24-alpine)
-  - PostgreSQL 18 vía Docker Compose
+  - PostgreSQL 18 vía Docker Compose (volumen /var/lib/postgresql; ver docs/docker.md)
   - Peers y auditoría npm: docs/stack.md
-  - Flujo de trabajo: docs/como-trabajar.md
+  - Flujo de trabajo: docs/README.md → docs/como-trabajar.md
   - Diagramas: docs/diagramas/*.md (Mermaid). PNG solo archivo visual.
 
   Dominio:

@@ -50,15 +50,18 @@ Cambio de umbral, roles o outcomes **siempre** pasa por OpenSpec + `docs/autoriz
 
 ## 5. Levantar el entorno
 
+Recorrido completo: [docker.md](./docker.md). Resumen:
+
 ```bash
-cp .env.example .env
+cp .env.example .env          # DATABASE_URL → localhost (API en el host)
 pnpm install
 pnpm --filter @crece/shared build
-pnpm dev:api    # http://localhost:3001/health
-pnpm dev:web    # http://localhost:3000
+pnpm compose:db               # docker compose up -d db
+pnpm dev:api                  # http://localhost:3001/health
+pnpm dev:web                  # http://localhost:3000
 ```
 
-Docker: `docker compose up -d db` y `docker compose --profile dev up --build`.
+Stack entero en contenedores: `pnpm compose:dev` (perfil Compose `dev`: `db` + `api` + `web` con healthchecks).
 
 ## 6. Qué no hacer
 

@@ -22,7 +22,7 @@ Fuente: `npm view <pkg> dist-tags` en esta fecha. **Next y Nest ya estaban en el
 | **@types/node** | 26.6.2 | 26.6.2 | Sí (tipos Node 26; runtime Docker = Node 24 LTS) |
 | **pnpm** | 12.5.1 | 12.5.1 (`packageManager`) | Sí |
 | **eslint** | 10.11.0 | no en árbol | Ver nota ESLint |
-| **PostgreSQL imagen** | — | `postgres:18-alpine` | Current major |
+| **PostgreSQL imagen** | — | `postgres:18-alpine` | Sí (`latest` major). Volumen: `/var/lib/postgresql` |
 
 ## Notas de peers (obligatorias)
 
@@ -40,4 +40,4 @@ npm view @nestjs/core dist-tags
 pnpm outdated -r
 ```
 
-No hay Prisma/ORM en el bootstrap.
+No hay Prisma/ORM en el bootstrap. `DATABASE_URL` se documenta para Compose (`docs/docker.md`).

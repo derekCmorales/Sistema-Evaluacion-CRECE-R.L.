@@ -16,6 +16,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo \"@crece/shared: sin linter en bootstrap\""
   },
+  "files": ["dist"],
   "devDependencies": {
     "typescript": "7.0.2"
   }

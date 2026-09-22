@@ -16,7 +16,7 @@
 Checklist antes de pedir revisión:
 
 - [ ] `pnpm install` y `pnpm build` y `pnpm lint` pasan en raíz.
-- [ ] Si toca API: `curl localhost:3001/health` (local o compose).
+- [ ] Si toca API o Compose: `curl localhost:3001/health` y, si aplica, `docker compose ps` (`db` healthy).
 - [ ] Sin secretos ni PII en el diff.
 - [ ] Interfaces nuevas **sin** prefijo `I`.
 - [ ] Cambios de producto relevantes tienen propuesta OpenSpec (`openspec/changes/`).
