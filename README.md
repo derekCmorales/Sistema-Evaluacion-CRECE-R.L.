@@ -11,9 +11,11 @@ Documentación: [AGENTS.md](./AGENTS.md) · [docs/](./docs/) · [CONTRIBUTING.md
 
 ## Requisitos
 
-- Node.js ≥ 20
-- [pnpm](https://pnpm.io/) 9+
+- Node.js ≥ 22 (recomendado 24 LTS; imágenes Docker usan `node:24-alpine`)
+- [pnpm](https://pnpm.io/) 12 (`corepack enable`)
 - Docker y Docker Compose (para base de datos y servicios containerizados)
+
+Versiones pinadas y peers: [docs/stack.md](./docs/stack.md).
 
 ## Inicio rápido (local con pnpm)
 

@@ -2,8 +2,8 @@
 
 ## Herramientas
 
-- **pnpm exclusivamente** (no `npm install` ni `yarn` en el monorepo).
-- Node ≥ 20.
+- **pnpm exclusivamente** (no `npm install` ni `yarn` en el monorepo). Versión: `corepack enable` → pnpm 12 (ver `packageManager` en raíz).
+- Node ≥ 22 (recomendado 24).
 
 ## Ramas
 

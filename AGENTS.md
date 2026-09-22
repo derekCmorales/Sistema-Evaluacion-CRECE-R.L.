@@ -23,11 +23,12 @@ Guía para **agentes de IA y desarrolladores** en este repositorio greenfield. L
 
 | Pieza | Ubicación |
 |-------|-----------|
-| Web | `apps/web` — Next.js App Router, TypeScript |
-| API | `apps/api` — NestJS, capas domain / application / infrastructure |
+| Web | `apps/web` — Next.js 16 App Router, React 19, TypeScript 5.9 |
+| API | `apps/api` — NestJS 12, capas domain / application / infrastructure |
 | Shared | `packages/shared` — tipos mínimos compartidos |
-| DB | PostgreSQL vía Docker Compose |
+| DB | PostgreSQL 17 vía Docker Compose |
 | Specs | `openspec/` — spec-driven |
+| Versiones | `docs/stack.md` — pnpm 12, peers y notas de build |
 
 ---
 

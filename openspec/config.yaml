@@ -5,10 +5,12 @@ context: |
   Repo greenfield (pnpm monorepo). NO copiar código del MVP local CRECE-MVP.
 
   Stack:
-  - apps/web: Next.js 15 App Router, TypeScript, Tailwind
-  - apps/api: NestJS 11, TypeScript, capas domain / application / infrastructure
+  - apps/web: Next.js 16, React 19, TypeScript 5.9, Tailwind 4, ESLint 9.39
+  - apps/api: NestJS 12, TypeScript 5.9, build vía tsc (capas domain / application / infrastructure)
   - packages/shared: tipos mínimos (@crece/shared)
-  - PostgreSQL 16 vía Docker Compose
+  - pnpm 12.5.1, Node >= 22 (Docker node:24-alpine)
+  - PostgreSQL 17 vía Docker Compose
+  - Peers y restricciones: docs/stack.md
 
   Dominio:
   - Captación y evaluación de crédito; persona central (Person); operaciones N.
