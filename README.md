@@ -15,7 +15,7 @@ Documentación: [AGENTS.md](./AGENTS.md) · [docs/](./docs/) · [CONTRIBUTING.md
 - [pnpm](https://pnpm.io/) 12 (`corepack enable`)
 - Docker y Docker Compose (para base de datos y servicios containerizados)
 
-Versiones pinadas y peers: [docs/stack.md](./docs/stack.md).
+Versiones pinadas y peers: [docs/stack.md](./docs/stack.md). Flujo de equipo: [docs/como-trabajar.md](./docs/como-trabajar.md). Diagramas para agentes: [docs/diagramas/README.md](./docs/diagramas/README.md) (Mermaid).
 
 ## Inicio rápido (local con pnpm)
 
@@ -63,7 +63,8 @@ Variables: ver [.env.example](./.env.example). No commitear `.env` con secretos 
 apps/web          # UI Next.js
 apps/api          # API NestJS (domain / application / infrastructure)
 packages/shared   # Tipos compartidos
-docs/             # Arquitectura, autorización, diagramas Documento 1
+docs/             # Arquitectura, autorización, cómo trabajar, stack
+docs/diagramas/   # Mermaid (fuente agentes) + PNG Documento 1
 openspec/         # Harness spec-driven (proponer / aplicar cambios)
 ```
 

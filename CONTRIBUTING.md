@@ -15,7 +15,7 @@
 
 Checklist antes de pedir revisión:
 
-- [ ] `pnpm install` y `pnpm build` pasan en raíz.
+- [ ] `pnpm install` y `pnpm build` y `pnpm lint` pasan en raíz.
 - [ ] Si toca API: `curl localhost:3001/health` (local o compose).
 - [ ] Sin secretos ni PII en el diff.
 - [ ] Interfaces nuevas **sin** prefijo `I`.

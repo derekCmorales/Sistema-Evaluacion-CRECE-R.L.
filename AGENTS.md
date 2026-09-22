@@ -1,6 +1,10 @@
 # AGENTS.md — Sistema Evaluación CRECE R.L.
 
-Guía para **agentes de IA y desarrolladores** en este repositorio greenfield. Leer también `docs/arquitectura.md`, `docs/requisitos.md` y `docs/autorizacion.md`.
+Guía para **agentes de IA y desarrolladores** en este repositorio greenfield.
+
+**Empezar por:** [`docs/como-trabajar.md`](./docs/como-trabajar.md) (flujo diario) · [`docs/stack.md`](./docs/stack.md) (versiones) · [`docs/diagramas/README.md`](./docs/diagramas/README.md) (**Mermaid**, no PNG).
+
+Leer también `docs/arquitectura.md`, `docs/requisitos.md` y `docs/autorizacion.md`.
 
 > El monorepo histórico `CRECE-MVP` es **solo aprendizaje**. No copiar su código ni pegar bloques de apps antiguas.
 
@@ -23,10 +27,10 @@ Guía para **agentes de IA y desarrolladores** en este repositorio greenfield. L
 
 | Pieza | Ubicación |
 |-------|-----------|
-| Web | `apps/web` — Next.js 16 App Router, React 19, TypeScript 5.9 |
-| API | `apps/api` — NestJS 12, capas domain / application / infrastructure |
+| Web | `apps/web` — Next.js **16.3.6** (latest estable), React 19.3, TypeScript **7.0.2** |
+| API | `apps/api` — NestJS **12.0.4** (latest estable), capas domain / application / infrastructure |
 | Shared | `packages/shared` — tipos mínimos compartidos |
-| DB | PostgreSQL 17 vía Docker Compose |
+| DB | PostgreSQL 18 vía Docker Compose |
 | Specs | `openspec/` — spec-driven |
 | Versiones | `docs/stack.md` — pnpm 12, peers y notas de build |
 
@@ -72,11 +76,13 @@ Stub: `apps/api/src/domain/policies/authorization-policy.ts`.
 
 ## 5. Flujo de trabajo
 
-1. Crear rama `cursor/<descripcion>-<suffix>` o convención acordada en `CONTRIBUTING.md`.
-2. Cambio significativo: carpeta en `openspec/changes/` vía skill **openspec-propose**.
-3. Implementar en capas correctas; tests cuando el change lo pida.
-4. `pnpm install`, `pnpm build`, compose `db` + `api` health si toca infra.
-5. PR en español o bilingüe claro; checklist en `CONTRIBUTING.md`.
+Ver el detalle en [`docs/como-trabajar.md`](./docs/como-trabajar.md). Resumen:
+
+1. Rama propia desde `main`.
+2. Cambio de producto: **openspec-propose** → `openspec/changes/`.
+3. Código en la capa correcta (nunca reglas en React; nunca infra en domain).
+4. `pnpm install && pnpm build && pnpm lint`.
+5. PR a `main` con checklist de `CONTRIBUTING.md`.
 
 ---
 
@@ -92,6 +98,7 @@ Stub: `apps/api/src/domain/policies/authorization-policy.ts`.
 
 ## 7. Referencias
 
-- Diagramas: `docs/diagramas/README.md`
+- Diagramas **Mermaid**: `docs/diagramas/README.md` (PNG solo archivo visual)
+- Cómo trabajar: `docs/como-trabajar.md`
 - Marca: `DESIGN.md`
 - Contexto OpenSpec: `openspec/config.yaml`
