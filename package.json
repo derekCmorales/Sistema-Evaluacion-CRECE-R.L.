@@ -1,0 +1,25 @@
+{
+  "name": "sistema-evaluacion-crece",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo greenfield — Cooperativa CRECE Guatemala, R.L.",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:web": "pnpm --filter @crece/web dev",
+    "dev:api": "pnpm --filter @crece/api dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}
