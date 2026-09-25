@@ -1,0 +1,37 @@
+<!-- @dsCard group="Pantallas" height=980 width=1400 subtitle="App móvil · perfil y ajustes, avisos vacíos, confirmación" page -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>AppMovilPerfil</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+var NAV = [{ id: 'inicio', label: 'Inicio', icon: I.House }, { id: 'creditos', label: 'Créditos', icon: I.HandCoins }, { id: 'metas', label: 'Metas', icon: I.Target }, { id: 'avisos', label: 'Avisos', icon: I.Bell, count: 2 }, { id: 'perfil', label: 'Perfil', icon: I.UserCircle }];
+function Phone(p) { return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } }, h(C.DeviceFrame, { statusTone: p.brand ? 'brand' : undefined }, p.children, p.nav && h(C.BottomNav, { items: NAV, active: p.nav }), h('div', { className: 'cr-device__home', style: p.brand && !p.nav ? { background: 'var(--bg-brand-strong)' } : undefined })), h('strong', { style: { color: 'var(--text-primary)', fontSize: 14 } }, p.label)); }
+function Stage(p) { return h('div', { style: { display: 'flex', gap: 40, padding: 40, justifyContent: 'center', flexWrap: 'wrap', background: 'var(--bg-subtle)', minHeight: '100%' } }, p.children); }
+function Section(p) { return h(Row, { style: { justifyContent: 'space-between', margin: '24px 0 4px' } }, h('h2', { className: 'headline-sm cr-heading' }, p.title), p.action); }
+mount(h(Stage, null,
+  h(Phone, { label: 'Perfil y ajustes', nav: 'perfil' }, h(C.AppBar, { title: 'Perfil' }), h(C.DeviceBody, null, h(Col, { gap: 20 },
+    h(Row, { gap: 14, style: { flexWrap: 'nowrap' } }, h(C.Avatar, { name: 'Mariana López', size: 'lg' }), h('div', null, h('strong', { className: 'title-lg', style: { display: 'block', color: 'var(--text-primary)' } }, 'Mariana López'), h('span', { className: 'body-sm', style: { color: 'var(--text-secondary)' } }, 'Asociada desde 2019 · Agencia Xela'))),
+    h(C.List, { inset: true }, h(C.ListItem, { icon: I.UserCircle, title: 'Datos personales', chevron: true, onClick: function () {} }), h(C.ListItem, { icon: I.CreditCard, title: 'Cuentas y tarjetas', chevron: true, onClick: function () {} }), h(C.ListItem, { icon: I.Users, title: 'Beneficiarios', description: '2 registrados', chevron: true, onClick: function () {} })),
+    h(C.Card, null, h(C.Switch, { label: 'Ingresar con huella', defaultChecked: true }), h(C.Divider), h(C.Switch, { label: 'Ocultar saldo al abrir' }), h(C.Divider), h(C.Switch, { label: 'Tema oscuro' })),
+    h(C.List, { inset: true }, h(C.ListItem, { icon: I.Headset, title: 'Ayuda y contacto', chevron: true, onClick: function () {} }), h(C.ListItem, { icon: I.SignOut, title: 'Cerrar sesión', onClick: function () {} }))))),
+  h(Phone, { label: 'Avisos (vacío)', nav: 'avisos' }, h(C.AppBar, { title: 'Avisos' }), h(C.DeviceBody, null, h('div', { style: { minHeight: 560, display: 'grid', placeItems: 'center' } }, h(C.EmptyState, { icon: I.Bell, title: 'Estás al día', description: 'Aquí verás recordatorios de pago, avances de tus trámites y novedades de CRECE.' })))),
+  h(Phone, { label: 'Confirmación' }, h(C.DeviceBody, null, h(Col, { gap: 20, style: { minHeight: 700, justifyContent: 'center', alignItems: 'center', textAlign: 'center' } },
+    h('div', { className: 'cr-anim-pop', style: { color: 'var(--success)' } }, h(I.CheckCircle, { size: 88, weight: 'fill' })),
+    h('h1', { className: 'display-sm cr-heading' }, '¡Tu solicitud va en camino!'),
+    h('p', { className: 'body-md', style: { maxWidth: 300 } }, 'Tu asesora revisará tu expediente y te escribirá en menos de 2 días hábiles.'),
+    h(C.Card, { variant: 'flat', style: { width: '100%' } }, h(C.DescriptionList, { items: [['Código', 'CR-0148'], ['Monto', 'Q25,000'], ['Plazo', '24 meses']] })),
+    h(C.Button, { block: true, size: 'lg' }, 'Ver estado'), h(C.Button, { block: true, variant: 'ghost' }, 'Volver al inicio'))))));
+</script>
+</body>
+</html>

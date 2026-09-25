@@ -1,0 +1,39 @@
+<!-- @dsCard group="Pantallas" height=980 width=1400 subtitle="App móvil · simular, documentos y seguimiento de crédito" page -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>AppMovilCredito</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+var NAV = [{ id: 'inicio', label: 'Inicio', icon: I.House }, { id: 'creditos', label: 'Créditos', icon: I.HandCoins }, { id: 'metas', label: 'Metas', icon: I.Target }, { id: 'avisos', label: 'Avisos', icon: I.Bell, count: 2 }, { id: 'perfil', label: 'Perfil', icon: I.UserCircle }];
+function Phone(p) { return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } }, h(C.DeviceFrame, { statusTone: p.brand ? 'brand' : undefined }, p.children, p.nav && h(C.BottomNav, { items: NAV, active: p.nav }), h('div', { className: 'cr-device__home', style: p.brand && !p.nav ? { background: 'var(--bg-brand-strong)' } : undefined })), h('strong', { style: { color: 'var(--text-primary)', fontSize: 14 } }, p.label)); }
+function Stage(p) { return h('div', { style: { display: 'flex', gap: 40, padding: 40, justifyContent: 'center', flexWrap: 'wrap', background: 'var(--bg-subtle)', minHeight: '100%' } }, p.children); }
+function Section(p) { return h(Row, { style: { justifyContent: 'space-between', margin: '24px 0 4px' } }, h('h2', { className: 'headline-sm cr-heading' }, p.title), p.action); }
+mount(h(Stage, null,
+  h(Phone, { label: 'Simular' }, h(C.AppBar, { title: 'Solicitar préstamo', onBack: function () {} }), h(C.DeviceBody, null, h(Col, { gap: 20 },
+    h(C.Steps, { steps: ['Simula', 'Datos', 'Documentos', 'Envío'], current: 0 }),
+    h(C.ChoiceCards, { columns: 3, value: 'negocio', options: [{ value: 'negocio', title: 'Negocio', icon: I.Storefront }, { value: 'hogar', title: 'Hogar', icon: I.HouseLine }, { value: 'estudios', title: 'Estudios', icon: I.GraduationCap }] }),
+    h(C.LoanCalculator, { terms: [12, 24, 36], ctaLabel: 'Continuar' })))),
+  h(Phone, { label: 'Documentos' }, h(C.AppBar, { title: 'Tus documentos', onBack: function () {} }), h(C.DeviceBody, null, h(Col, { gap: 20 },
+    h(C.Steps, { steps: ['Simula', 'Datos', 'Documentos', 'Envío'], current: 2 }),
+    h('div', null, h('h2', { className: 'headline-md cr-heading' }, 'Casi listo'), h('p', { className: 'body-md', style: { marginTop: 6 } }, 'Sube fotos claras. Tu asesor te ayuda si algo falta.')),
+    h(C.ProgressBar, { label: 'Documentos', value: 2, max: 4, valueLabel: '2 de 4' }),
+    h(C.DocumentChecklist, { items: [{ title: 'DPI (frente y reverso)', file: 'dpi.jpg · 1.2 MB' }, { title: 'Comprobante de ingresos', file: 'constancia.pdf · 320 KB' }, { title: 'Recibo de luz o agua' }, { title: 'Documentación del fiador' }] }),
+    h(C.Button, { block: true, size: 'lg', disabled: true }, 'Enviar solicitud')))),
+  h(Phone, { label: 'Estado de mi solicitud', nav: 'creditos' }, h(C.AppBar, { title: 'Mi solicitud', onBack: function () {} }), h(C.DeviceBody, null, h(Col, { gap: 20 },
+    h(C.Card, { variant: 'brand', signature: true }, h(Row, { style: { justifyContent: 'space-between' } }, h('span', { style: { opacity: .85, fontSize: 13 } }, 'CR-0148 · Negocio'), h(C.Badge, { variant: 'accent', pill: true }, 'En revisión')), h('div', { style: { marginTop: 12 } }, h(C.Amount, { value: 25000, decimals: 0, size: 36 })), h('div', { style: { opacity: .85, fontSize: 13, marginTop: 4 } }, '24 meses · cuota estimada Q1,248.10')),
+    h(C.StatusTracker, { current: 3, meta: { 0: '16 sep', 1: '17 sep', 2: '18 sep', 3: 'Desde hoy', currentText: 'Gerencia revisa tu expediente. Te avisaremos por WhatsApp.' } }),
+    h(C.Button, { block: true, variant: 'secondary', icon: I.ChatCircleText }, 'Hablar con mi asesora'))))));
+</script>
+</body>
+</html>

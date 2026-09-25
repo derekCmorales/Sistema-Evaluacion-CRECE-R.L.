@@ -1,0 +1,21 @@
+<!-- @dsCard group="Layout" height=120 -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>DeviceBody</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+mount(h(Pad, null, h('p', null, 'Úsalo dentro de DeviceFrame.')));
+</script>
+</body>
+</html>

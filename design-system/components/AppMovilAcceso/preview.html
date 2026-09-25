@@ -1,0 +1,44 @@
+<!-- @dsCard group="Pantallas" height=980 width=1400 subtitle="App móvil · splash, ingreso y verificación" page -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>AppMovilAcceso</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+var NAV = [{ id: 'inicio', label: 'Inicio', icon: I.House }, { id: 'creditos', label: 'Créditos', icon: I.HandCoins }, { id: 'metas', label: 'Metas', icon: I.Target }, { id: 'avisos', label: 'Avisos', icon: I.Bell, count: 2 }, { id: 'perfil', label: 'Perfil', icon: I.UserCircle }];
+function Phone(p) { return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' } }, h(C.DeviceFrame, { statusTone: p.brand ? 'brand' : undefined }, p.children, p.nav && h(C.BottomNav, { items: NAV, active: p.nav }), h('div', { className: 'cr-device__home', style: p.brand && !p.nav ? { background: 'var(--bg-brand-strong)' } : undefined })), h('strong', { style: { color: 'var(--text-primary)', fontSize: 14 } }, p.label)); }
+function Stage(p) { return h('div', { style: { display: 'flex', gap: 40, padding: 40, justifyContent: 'center', flexWrap: 'wrap', background: 'var(--bg-subtle)', minHeight: '100%' } }, p.children); }
+function Section(p) { return h(Row, { style: { justifyContent: 'space-between', margin: '24px 0 4px' } }, h('h2', { className: 'headline-sm cr-heading' }, p.title), p.action); }
+mount(h(Stage, null,
+  h(Phone, { label: 'Splash', brand: true }, h('div', { style: { flex: 1, background: 'var(--bg-brand-strong)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, position: 'relative', overflow: 'hidden' } },
+    h('div', { style: { position: 'absolute', right: -80, bottom: -60, width: 300, height: 300, borderRadius: '50%', border: '40px solid #ffffff10' } }), h('div', { style: { position: 'absolute', left: -50, top: 90, width: 140, height: 140, borderRadius: '50%', border: '18px solid #e8973c99' } }),
+    h('div', { className: 'cr-anim-pop' }, h(C.Logo, { src: LOGO_VW, width: 150 })), h('p', { className: 'cr-anim-fade-up', style: { color: 'var(--text-on-brand-strong)', font: '700 20px/26px var(--font-display)', textAlign: 'center', animationDelay: '300ms' } }, 'Lo que sueñas,', h('br'), 'crece contigo.'))),
+  h(Phone, { label: 'Ingreso' }, h(C.DeviceBody, null, h(Col, { gap: 24, style: { paddingTop: 32 } },
+    h(C.Logo, { src: LOGO, darkSrc: LOGO_W, width: 150 }),
+    h('div', null, h('h1', { className: 'display-sm cr-heading' }, 'Hola de nuevo'), h('p', { className: 'body-md', style: { marginTop: 8, color: 'var(--text-secondary)' } }, 'Ingresa para ver tus cuentas y trámites.')),
+    h(C.TextField, { label: 'DPI o usuario', icon: I.IdentificationCard, defaultValue: '2547 88120 0101' }),
+    h(C.TextField, { label: 'Contraseña', type: 'password', defaultValue: 'crece2026' }),
+    h(C.Link, null, '¿Olvidaste tu contraseña?'),
+    h(C.Button, { block: true, size: 'lg', arrow: true }, 'Ingresar'),
+    h(C.Divider, { label: 'o' }),
+    h(C.Button, { block: true, size: 'lg', variant: 'secondary', icon: I.Fingerprint }, 'Usar huella o rostro'),
+    h('p', { className: 'body-sm', style: { textAlign: 'center', color: 'var(--text-secondary)' } }, '¿Aún no eres asociado? ', h(C.Link, null, 'Únete a CRECE'))))),
+  h(Phone, { label: 'Verificación' }, h(C.AppBar, { title: '', onBack: function () {} }), h(C.DeviceBody, null, h(Col, { gap: 24, style: { paddingTop: 8 } },
+    h('div', { className: 'cr-empty__art', style: { margin: 0 } }, h(I.ShieldCheck, { size: 40, weight: 'duotone' })),
+    h('div', null, h('h1', { className: 'headline-lg cr-heading' }, 'Confirma que eres tú'), h('p', { className: 'body-md', style: { marginTop: 8 } }, 'Enviamos un código de 6 dígitos al ', h('strong', { style: { color: 'var(--text-primary)' } }, '+502 •••• 0000'), '.')),
+    h(C.PinInput, { length: 6 }),
+    h('p', { className: 'body-sm', style: { color: 'var(--text-secondary)' } }, '¿No te llegó? Podrás reenviarlo en ', h('strong', { className: 'cr-tnum' }, '0:42')),
+    h('div', { style: { flex: 1 } }), h(C.Button, { block: true, size: 'lg' }, 'Verificar'))))));
+</script>
+</body>
+</html>

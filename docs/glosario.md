@@ -32,4 +32,4 @@ Términos de negocio (es-GT) ↔ identificadores técnicos (inglés).
 | Comisión de Vigilancia | `OVERSIGHT` |
 | Administrador | `SYSTEM_ADMIN` |
 
-Colores de folder: naranja identidad, azul operación, natural custodia — `DESIGN.md`.
+Colores de folder: naranja identidad, azul operación, natural custodia — `DESIGN.md` (UI completa en `design-system/`).
