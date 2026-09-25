@@ -1,0 +1,36 @@
+<!-- @dsCard group="Pantallas" height=1150 width=1440 subtitle="Web app · expediente con tabs, documentos, seguimiento y decisión" page -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>WebExpediente</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+var SIDE = [{ id: 'inicio', label: 'Vista general', icon: I.SquaresFour }, { id: 'solicitudes', label: 'Solicitudes', icon: I.FileText, count: 4 }, { id: 'asociados', label: 'Asociados', icon: I.UsersThree }, { id: 'pagos', label: 'Pagos y cobros', icon: I.Receipt }, { id: 'reportes', label: 'Reportes', icon: I.ChartBar }, { section: 'Administración' }, { id: 'productos', label: 'Productos', icon: I.HandCoins }, { id: 'contenido', label: 'Contenido', icon: I.PencilSimple }, { id: 'ajustes', label: 'Configuración', icon: I.Gear }];
+function Shell(p) { var t = C.useTheme(); return h(C.AppShell, { sidebar: h(C.Sidebar, { brand: h(C.Logo, { src: LOGO, darkSrc: LOGO_W, width: 150 }), items: SIDE, active: p.active, footer: h(C.Card, { variant: 'flat' }, h(Row, { gap: 10, style: { flexWrap: 'nowrap' } }, h(C.Avatar, { name: 'Carmen García', size: 'sm', online: true }), h('div', null, h('strong', { style: { display: 'block', color: 'var(--text-primary)', fontSize: 14 } }, 'Carmen García'), h('small', { style: { color: 'var(--text-secondary)' } }, 'Asesora · Agencia Xela')))) }), topbar: h(C.TopBar, { actions: h(Row, { gap: 4 }, h(C.IconButton, { icon: t[0] === 'dark' ? I.Sun : I.Moon, label: 'Cambiar tema', onClick: t[1] }), h(C.IconButton, { icon: I.Bell, label: 'Avisos', badge: true }), h(C.IconButton, { icon: I.Question, label: 'Ayuda' })) }, h('div', { style: { width: 360 } }, h(C.SearchField, { placeholder: 'Buscar asociado, solicitud o código' }))) }, p.children); }
+var APPS = [{ id: 'CR-0148', name: 'Mariana López', purpose: 'Equipo para panadería', amount: 25000, months: 24, status: 'En revisión', date: '18 sep' }, { id: 'CR-0147', name: 'Andrés Méndez', purpose: 'Ampliar taller', amount: 75000, months: 36, status: 'Evaluación', date: '17 sep' }, { id: 'CR-0146', name: 'Lucía Pérez', purpose: 'Mejoras del hogar', amount: 18000, months: 24, status: 'Aprobada', date: '16 sep' }, { id: 'CR-0145', name: 'Rosa Ixcot', purpose: 'Capital de tienda', amount: 42000, months: 48, status: 'Expediente', date: '15 sep' }, { id: 'CR-0144', name: 'Juan Tzul', purpose: 'Tractor para finca', amount: 120000, months: 60, status: 'En corrección', date: '14 sep' }];
+function P() { var t = React.useState('resumen');
+return h(Shell, { active: 'solicitudes' },
+  h(C.PageHeader, { breadcrumbs: h(C.Breadcrumbs, { items: [{ label: 'Solicitudes' }, { label: 'CR-0148' }] }), title: 'Mariana López', description: 'Equipo para panadería · Q25,000 a 24 meses · Garantía fiduciaria', actions: h(F, null, h(C.Badge, { dot: true, pill: true }, 'En revisión'), h(C.Button, { variant: 'secondary', icon: I.ChatCircleText }, 'Contactar'), h(C.Button, { variant: 'secondary', icon: I.DownloadSimple }, 'Expediente PDF')) }),
+  h(C.Tabs, { value: t[0], onChange: t[1], tabs: [['resumen', 'Resumen'], ['docs', 'Documentos', '4/4'], ['eval', 'Evaluación'], ['bitacora', 'Bitácora', 6]] }),
+  h('div', { style: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'start' } },
+    h(Col, { gap: 24 },
+      h(C.Card, { title: 'Datos del crédito' }, h('div', { className: 'cr-grid', style: { '--cr-cols': 2, columnGap: 40 } }, h(C.DescriptionList, { items: [['Monto', C.money(25000, 0)], ['Plazo', '24 meses'], ['Cuota estimada', C.money(1248.1)], ['Tasa nominal anual', '18%']] }), h(C.DescriptionList, { items: [['Ingreso mensual', C.money(8500, 0)], ['Gastos', C.money(3100, 0)], ['Cuota / ingreso', '14.7%'], ['Decide', 'Gerencia']] }))),
+      h(C.Card, { title: 'Documentos', action: h(C.Badge, { tone: 'success' }, 'Completo') }, h(C.DocumentChecklist, { items: [{ title: 'Identificación (DPI)', file: 'dpi.jpg · 1.2 MB' }, { title: 'Comprobante de ingresos', file: 'constancia.pdf · 320 KB' }, { title: 'Recibo de servicio', file: 'recibo-luz.pdf · 210 KB' }, { title: 'Documentación del fiador', file: 'fiador.pdf · 450 KB' }] })),
+      h(C.Alert, { tone: 'info', title: 'Referencia informativa' }, 'Los cálculos no aprueban la solicitud. La decisión es de las personas responsables.')),
+    h(Col, { gap: 24 },
+      h(C.Card, { title: 'Seguimiento' }, h(C.StatusTracker, { current: 3, meta: { 0: '16 sep · Formulario', 1: '17 sep · C. García', 2: '18 sep · C. García', 3: 'Desde 18 sep', currentText: 'Pendiente de Gerencia.' } })),
+      h(C.Card, { variant: 'elevated', title: 'Tu decisión' }, h(Col, { gap: 16 }, h(C.TextField, { label: 'Justificación', multiline: true, rows: 3, maxLength: 500, help: 'Mínimo 10 caracteres. Queda en la bitácora.' }), h(Row, null, h(C.Button, { icon: I.Check }, 'Aprobar'), h(C.Button, { variant: 'secondary' }, 'Devolver'), h(C.Button, { variant: 'ghost' }, 'Rechazar'))))))); }
+mount(h(P));
+</script>
+</body>
+</html>

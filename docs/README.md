@@ -18,7 +18,7 @@ Orden de lectura **e2e** (humano o agente). No saltar al código de features sin
 | 12 | [pantallas.md](./pantallas.md) | Mapa de UIs objetivo (IDs C-03, D-06, …) |
 | 13 | [glosario.md](./glosario.md) | Lenguaje ubicuo es-GT ↔ inglés técnico |
 | 14 | [diagramas/README.md](./diagramas/README.md) | Mermaid (fuente agentes); no añadir PNG nuevos |
-| 15 | [../DESIGN.md](../DESIGN.md) | Marca CRECE |
+| 15 | [../DESIGN.md](../DESIGN.md) → [../design-system/](../design-system/README.md) | **Guía madre y única de la UI**: tokens, componentes, patrones, voz |
 | 16 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Ramas, checklist de PR |
 
 OpenSpec: [`openspec/config.yaml`](../openspec/config.yaml) y [`openspec/specs/README.md`](../openspec/specs/README.md).

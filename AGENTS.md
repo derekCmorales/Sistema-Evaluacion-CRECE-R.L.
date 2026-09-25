@@ -21,6 +21,7 @@ Guía para **agentes de IA y desarrolladores**.
 9. Cuando dudes entre bloquear o avisar, **avisa con excepción justificada**.
 10. Ningún dato del core contable CENSYT entra al sistema.
 11. **Siempre hay tests** en la capa de la regla antes del PR. Ver [`docs/testing.md`](./docs/testing.md). Una captura no sustituye aserciones. No agregar PNG: diagramas en Mermaid.
+12. **UI solo desde el design system:** tokens semánticos, componentes y patrones de `design-system/` (ver `DESIGN.md`). Nada de colores, fuentes o componentes fuera de él.
 
 ---
 
@@ -35,6 +36,7 @@ Guía para **agentes de IA y desarrolladores**.
 | Shared | `packages/shared` — tipos, labels, errores |
 | DB | PostgreSQL 18 · esquema Prisma en `apps/api/prisma/` (aún no cableado al runtime salvo Compose) |
 | Specs | `openspec/specs/` |
+| Design system | `design-system/` — guía madre y única de la UI (copia de Claude Design; no editar a mano) |
 
 ---
 
@@ -91,6 +93,7 @@ pnpm build && pnpm lint
 - Score, risk band, auto-approve, Gerencia como cargo.
 - Integración contable CENSYT (nivel B).
 - Lógica de negocio en componentes React.
+- Colores, tipografías o componentes de UI inventados fuera de `design-system/`.
 - Implementar OCR/LLM/R2 sin change OpenSpec.
 - PR de comportamiento sin tests de esa capa, o diagramas como imagen.
 
@@ -103,4 +106,4 @@ pnpm build && pnpm lint
 - Testing (siempre): `docs/testing.md`
 - Pantallas objetivo: `docs/pantallas.md`
 - Diagramas Mermaid: `docs/diagramas/README.md`
-- Marca: `DESIGN.md`
+- UI / marca: **`design-system/`** es la guía madre y única de la UI (entrada: `DESIGN.md`)

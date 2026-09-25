@@ -1,0 +1,25 @@
+<!-- @dsCard group="Fundamentos" height=1500 width=1200 subtitle="137 íconos Phosphor curados para finanzas cooperativas" page -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>Iconografia</title></head>
+<body>
+<div id="root"></div>
+<script>
+
+var C = window.Crece, h = React.createElement, F = React.Fragment, I = C.Icons;
+var LOGO = '/_blob/4a76cc16c5235ab2d4ed0e9b09de2c08', LOGO_W = '/_blob/d503e4983f970a10a3001390e50eaecb', LOGO_V = '/_blob/075ae49d59f02754cd98407444548d6b', LOGO_VW = '/_blob/389376b6e7e58f3c7721ed4d1e88fa1a';
+var PH1 = '/_blob/a24f356a7420264eff52125280ffeb9b', PH2 = '/_blob/fbf4b71d2facd8c180cdeb18bec392e6', PH3 = '/_blob/c07271ca791dd80bae1b4168db2159fa';
+function mount(el) { document.body.classList.add('cr-root'); ReactDOM.createRoot(document.getElementById('root')).render(el); }
+function Pad(p) { return h('div', { style: Object.assign({ padding: 24 }, p.style) }, p.children); }
+function Row(p) { return h('div', { className: 'cr-row', style: Object.assign({ '--cr-gap': (p.gap || 12) + 'px', alignItems: p.align || 'center' }, p.style) }, p.children); }
+function Col(p) { return h('div', { className: 'cr-stack', style: Object.assign({ '--cr-gap': (p.gap || 16) + 'px' }, p.style) }, p.children); }
+function Label(p) { return h('div', { style: { font: '600 11px/16px var(--font-sans)', letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 8 } }, p.children); }
+
+function D() { var q = React.useState(''), w = React.useState('regular'); var names = Object.keys(C.Icons).filter(function (n) { return n.toLowerCase().indexOf(q[0].toLowerCase()) > -1; });
+return h(Pad, { style: { padding: 32 } }, h(Col, { gap: 20 },
+  h(Row, { gap: 16 }, h('div', { style: { width: 320 } }, h(C.SearchField, { placeholder: 'Buscar ícono', value: q[0], onChange: q[1] })), h(C.SegmentedControl, { options: [['regular', 'Regular'], ['duotone', 'Duotono'], ['fill', 'Relleno'], ['bold', 'Negrita']], value: w[0], onChange: w[1] }), h('span', { className: 'caption', style: { color: 'var(--text-secondary)' } }, names.length + ' íconos · C.Icons.<Nombre>')),
+  h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8 } }, names.map(function (n) { var Ic = C.Icons[n]; return h('div', { key: n, title: n, style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 6px', borderRadius: 12, background: 'var(--bg-subtle)', color: 'var(--brand)' } }, h(Ic, { size: 28, weight: w[0] }), h('span', { style: { fontSize: 11, color: 'var(--text-body)', textAlign: 'center', overflowWrap: 'anywhere' } }, n)); })))); }
+mount(h(D));
+</script>
+</body>
+</html>

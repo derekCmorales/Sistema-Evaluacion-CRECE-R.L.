@@ -23,6 +23,7 @@ Checklist antes de pedir revisión:
 - [ ] Cambios de producto relevantes tienen propuesta OpenSpec (`openspec/changes/`) **con sección Tests**.
 - [ ] Documentación actualizada si cambia stack, autorización, compose o la puerta de testing.
 - [ ] Sin PNG ni imágenes nuevas en el diff; diagramas en Mermaid.
+- [ ] Si toca UI: usa tokens semánticos y componentes de `design-system/` (ver `DESIGN.md`).
 
 ## OpenSpec
 

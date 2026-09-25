@@ -1,0 +1,43 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="es-GT">
+<head><meta charset="utf-8"><title>Cover</title>
+<style>
+  html, body { margin: 0; background: var(--bg-canvas); }
+  .cover { position: relative; width: 960px; height: 288px; overflow: hidden; background: var(--bg-canvas); }
+  .cover svg { position: absolute; inset: 0; }
+  .slab { fill: var(--bg-brand-strong); }
+  .sun { fill: var(--accent); }
+  .tint { fill: var(--bg-muted); }
+  .ink { fill: var(--brand); }
+  .ring { fill: none; stroke: var(--accent); stroke-width: 2; opacity: .65; }
+  .r-xl { rx: var(--radius-xl); }
+  .r-lg { rx: var(--radius-lg); }
+  .text { position: absolute; left: 48px; bottom: 40px; max-width: 420px; }
+  .name { margin: 0; font-family: var(--font-display); font-size: 88px; line-height: .95; font-weight: 800; letter-spacing: -0.045em; color: var(--text-primary); }
+  .name span { color: var(--brand); }
+  .cover-tagline { margin: 14px 0 0; font-family: var(--font-sans); font-size: 14px; line-height: 20px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="cover">
+  <!--
+    blocks: bg-brand-strong slab 270×308 (radius-2xl 28 on three corners, radius-signature 100 bottom-right), accent 190×152 (radius-xl), bg-muted 190×160 (radius-xl), brand 64×64 (radius-lg)
+    arrangement: one tall slab with two satellites bleeding off the top and right edges, everything right of x=500
+    pattern: literal motif, the offset 2px accent outline with the 100px signature corner; chosen because the README names the signature corner as the system's one visual gesture
+    scales: space-5 20 gaps, radius-2xl 28, radius-signature 100, radius-xl 20, radius-lg 14, border-strong 2px at opacity-accent-outline .65
+  -->
+  <svg width="960" height="288" viewBox="0 0 960 288" aria-hidden="true">
+    <path class="ring" d="M558 40 H790 V230 A100 100 0 0 1 690 330 H558 A28 28 0 0 1 530 302 V68 A28 28 0 0 1 558 40 Z"/>
+    <path class="slab" d="M528 -20 H770 V168 A100 100 0 0 1 670 268 H528 A28 28 0 0 1 500 240 V8 A28 28 0 0 1 528 -20 Z"/>
+    <rect class="sun r-xl" x="790" y="-22" width="190" height="152"/>
+    <rect class="tint r-xl" x="790" y="150" width="190" height="160"/>
+    <rect class="ink r-lg" x="812" y="172" width="64" height="64"/>
+  </svg>
+  <div class="text">
+    <h1 class="name">CRECE<br><span>Guatemala</span></h1>
+    <p class="cover-tagline">Lo que sueñas, crece contigo. La base de diseño para app móvil, web y todo lo que viene.</p>
+  </div>
+</div>
+</body>
+</html>
