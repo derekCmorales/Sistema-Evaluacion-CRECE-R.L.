@@ -24,13 +24,14 @@ import {
 } from "@crece/domain";
 import {
   parseCreateDraftOperation,
-  parseFinancialAssessmentInput,
-  parseGuarantorInput,
-  parseUpdateChecklistItem,
-  parseWatchlistCheckInput,
   toDraftOperationEntity,
 } from "@crece/application";
 import { InMemoryOperationStore } from "./in-memory-operation.store";
+import { UpdateChecklistService } from "./services/update-checklist.service";
+import { FinancialAssessmentService } from "./services/financial-assessment.service";
+import { GuarantorService } from "./services/guarantor.service";
+import { WatchlistService } from "./services/watchlist.service";
+import { CaseAssemblyStatusService } from "./services/case-assembly-status.service";
 
 const PRODUCTS: ProductType[] = [
   "WORKING_CAPITAL",
@@ -41,7 +42,14 @@ const GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 
 @Controller("operations")
 export class OperationsController {
-  constructor(private readonly store: InMemoryOperationStore) {}
+  constructor(
+    private readonly store: InMemoryOperationStore,
+    private readonly updateChecklistService: UpdateChecklistService,
+    private readonly financialAssessmentService: FinancialAssessmentService,
+    private readonly guarantorService: GuarantorService,
+    private readonly watchlistService: WatchlistService,
+    private readonly caseAssemblyStatusService: CaseAssemblyStatusService,
+  ) {}
 
   @Get()
   list() {
@@ -102,47 +110,15 @@ export class OperationsController {
    */
   @Patch(":id/checklist")
   updateChecklist(@Param("id") id: string, @Body() body: unknown) {
-    const payload = asObject(body);
-    const parsed = parseUpdateChecklistItem({
-      ...payload,
-      operationId: id,
-    });
-    const updated = this.store.updateChecklistItem(
-      id,
-      parsed.code,
-      parsed.status,
-      parsed.notApplicableReason,
-      parsed.documentId,
-    );
-    if (!updated) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
-    return {
-      operationId: updated.id,
-      checklist: updated.checklist,
-      updatedAt: updated.updatedAt,
-    };
+    return this.updateChecklistService.execute(id, asObject(body));
   }
 
   /**
-   * Fase 3: Captura manual de evaluación financiera
+   * Fase 3: Captura manual de evaluación financiera + cálculo determinístico
    */
   @Post(":id/assessment")
   updateAssessment(@Param("id") id: string, @Body() body: unknown) {
-    const payload = asObject(body);
-    const parsed = parseFinancialAssessmentInput({
-      ...payload,
-      operationId: id,
-    });
-    const updated = this.store.updateAssessment(id, parsed);
-    if (!updated) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
-    return {
-      operationId: updated.id,
-      assessment: updated.assessment,
-      updatedAt: updated.updatedAt,
-    };
+    return this.financialAssessmentService.execute(id, asObject(body));
   }
 
   /**
@@ -150,21 +126,7 @@ export class OperationsController {
    */
   @Post(":id/guarantor")
   updateGuarantor(@Param("id") id: string, @Body() body: unknown) {
-    const payload = asObject(body);
-    const parsed = parseGuarantorInput({
-      ...payload,
-      operationId: id,
-    });
-    const updated = this.store.updateGuarantor(id, parsed);
-    if (!updated) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
-    return {
-      operationId: updated.id,
-      guarantor: updated.guarantor,
-      guarantorAssessment: updated.guarantorAssessment,
-      updatedAt: updated.updatedAt,
-    };
+    return this.guarantorService.execute(id, asObject(body));
   }
 
   /**
@@ -172,29 +134,7 @@ export class OperationsController {
    */
   @Post(":id/watchlist")
   recordWatchlistCheck(@Param("id") id: string, @Body() body: unknown) {
-    const payload = asObject(body);
-    const parsed = parseWatchlistCheckInput({
-      ...payload,
-      operationId: id,
-    });
-    const checkEntry = {
-      id: randomUUID(),
-      operationId: parsed.operationId,
-      source: parsed.source,
-      queryRef: parsed.queryRef,
-      result: parsed.result,
-      checkedByUserId: parsed.checkedByUserId,
-      checkedAt: new Date().toISOString(),
-      notes: parsed.notes,
-    };
-    const updated = this.store.addWatchlistCheck(id, checkEntry);
-    if (!updated) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
-    return {
-      operationId: updated.id,
-      watchlistChecks: updated.watchlistChecks,
-    };
+    return this.watchlistService.execute(id, asObject(body));
   }
 
   /**
@@ -214,6 +154,14 @@ export class OperationsController {
       assembledByUserId: updated.assembledByUserId,
       assembledAt: updated.assembledAt,
     };
+  }
+
+  /**
+   * Fase 3: Estado de completitud del expediente
+   */
+  @Get(":id/assembly-status")
+  getAssemblyStatus(@Param("id") id: string) {
+    return this.caseAssemblyStatusService.evaluate(id);
   }
 
   @Post("calc")
