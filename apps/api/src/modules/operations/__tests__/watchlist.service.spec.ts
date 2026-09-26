@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { NotFoundException } from "@nestjs/common";
-import { ValidationError } from "@crece/shared";
+import { ValidationError, type WatchlistCheckSummaryDto } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { WatchlistService } from "../services/watchlist.service";
 
@@ -28,7 +28,7 @@ describe("WatchlistService", () => {
     expect(result.watchlistChecks).toBeDefined();
     expect(result.watchlistChecks!.length).toBeGreaterThanOrEqual(1);
 
-    const ofacCheck = result.watchlistChecks!.find((c) => c.source === "OFAC");
+    const ofacCheck = result.watchlistChecks!.find((c: WatchlistCheckSummaryDto) => c.source === "OFAC");
     expect(ofacCheck?.result).toBe("CLEAR");
     expect(ofacCheck?.checkedByUserId).toBe("user-advisor-ana");
     expect(ofacCheck?.notes).toBe("Sin coincidencias en SDN");
@@ -42,7 +42,7 @@ describe("WatchlistService", () => {
       checkedByUserId: "user-advisor-ana",
     });
 
-    const onuCheck = result.watchlistChecks!.find((c) => c.source === "ONU");
+    const onuCheck = result.watchlistChecks!.find((c: WatchlistCheckSummaryDto) => c.source === "ONU");
     expect(onuCheck?.result).toBe("MATCH_FOUND");
   });
 
@@ -54,7 +54,7 @@ describe("WatchlistService", () => {
       checkedByUserId: "user-advisor-ana",
     });
 
-    const gcCheck = result.watchlistChecks!.find((c) => c.source === "GUATECOMPRAS");
+    const gcCheck = result.watchlistChecks!.find((c: WatchlistCheckSummaryDto) => c.source === "GUATECOMPRAS");
     expect(gcCheck?.result).toBe("PENDING_MANUAL_REVIEW");
   });
 
