@@ -131,6 +131,10 @@ export type Opinion5C = {
 export type ProspectInterest = "CREDIT" | "SAVINGS" | "FIXED_TERM";
 
 export type ProspectSource = "LANDING" | "ADVISOR";
+export type PersonSource = ProspectSource;
+
+export type WatchlistSource = "OFAC" | "ONU" | "GUATECOMPRAS";
+export type WatchlistResult = "CLEAR" | "MATCH_FOUND" | "PENDING_MANUAL_REVIEW";
 
 export type AiAlertType = "BUREAU_MISMATCH" | "INCOHERENCE" | "OTHER";
 
@@ -340,3 +344,147 @@ export class ValidationError extends DomainError {
     super(message, "VALIDATION");
   }
 }
+
+/* =========================================================================
+ * CONTRATOS INICIALES: FASE 1, FASE 2 Y FASE 3 (Desarrollo Simultáneo)
+ * ========================================================================= */
+
+export const API_PERSONS_PATH = "/persons" as const;
+export const API_OPERATIONS_PATH = "/operations" as const;
+
+// -------------------------------------------------------------------------
+// FASE 1: REGISTRO DEL SOLICITANTE
+// -------------------------------------------------------------------------
+
+export type CreatePersonInput = {
+  fullName: string;
+  dpi: string;
+  phone: string;
+  email?: string;
+  interest: ProspectInterest;
+  source: PersonSource;
+  registeredByUserId?: UserId;
+};
+
+export type PersonSummaryDto = {
+  id: PersonId;
+  fullName: string;
+  dpi: string;
+  phone: string;
+  email?: string;
+  status: PersonStatus;
+  source: PersonSource;
+  interest?: ProspectInterest;
+  registeredByUserId?: UserId;
+  createdAt: string;
+  operationsCount: number;
+};
+
+// -------------------------------------------------------------------------
+// FASE 2: APERTURA DE SOLICITUD
+// -------------------------------------------------------------------------
+
+export type CreateDraftOperationInput = {
+  personId: PersonId;
+  productType: ProductType;
+  guaranteeType: GuaranteeType;
+  requestedAmount: Money;
+  termMonths: number;
+  purpose: string;
+  hasGuarantor: boolean;
+  createdBy: UserId;
+};
+
+export type ChecklistItemSummaryDto = {
+  code: string;
+  label: string;
+  required: boolean;
+  status: ChecklistItemStatus;
+  notApplicableReason?: string;
+  documentId?: string;
+  critical?: boolean;
+};
+
+export type DraftOperationSummaryDto = {
+  id: OperationId;
+  personId: PersonId;
+  productType: ProductType;
+  guaranteeType: GuaranteeType;
+  requestedAmount: Money;
+  termMonths: number;
+  purpose: string;
+  hasGuarantor: boolean;
+  state: "DRAFT";
+  checklist: ChecklistItemSummaryDto[];
+  createdBy: UserId;
+  createdAt: string;
+};
+
+// -------------------------------------------------------------------------
+// FASE 3: ARMADO DEL EXPEDIENTE
+// -------------------------------------------------------------------------
+
+export type UpdateChecklistItemInput = {
+  operationId: OperationId;
+  code: string;
+  status: ChecklistItemStatus;
+  notApplicableReason?: string;
+  documentId?: DocumentId;
+};
+
+export type UpdateFinancialAssessmentInput = {
+  operationId: OperationId;
+  monthlySales: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  existingDebtPayment: number;
+  guaranteeValue?: number;
+  projectedRoiPercent?: number;
+};
+
+export type UpdateGuarantorInput = {
+  operationId: OperationId;
+  fullName: string;
+  dpi?: string;
+  phone?: string;
+  relationship?: string;
+  financialAssessment?: {
+    monthlyIncome: number;
+    monthlyExpenses: number;
+    existingDebtPayment: number;
+    guaranteeValue?: number;
+  };
+  bureauDocumentId?: DocumentId;
+  notes?: string;
+};
+
+export type RecordWatchlistCheckInput = {
+  operationId: OperationId;
+  source: WatchlistSource;
+  queryRef: string;
+  result: WatchlistResult;
+  notes?: string;
+  checkedByUserId: UserId;
+};
+
+export type WatchlistCheckSummaryDto = {
+  id: string;
+  operationId: OperationId;
+  source: WatchlistSource;
+  queryRef: string;
+  result: WatchlistResult;
+  checkedByUserId: UserId;
+  checkedAt: string;
+  notes?: string;
+};
+
+export type CaseAssemblyStatusDto = {
+  operationId: OperationId;
+  assembledByUserId?: UserId;
+  assembledAt?: string;
+  checklistComplete: boolean;
+  pendingChecklistCount: number;
+  hasFinancialAssessment: boolean;
+  watchlistChecksCompleted: boolean;
+  readyForReview: boolean;
+};

@@ -28,6 +28,9 @@ export type Person = {
   dpi?: string;
   address?: string;
   status: PersonStatus;
+  source?: import("@crece/shared").PersonSource;
+  interest?: import("@crece/shared").ProspectInterest;
+  registeredByUserId?: UserId;
   createdAt: string;
 };
 
@@ -85,6 +88,9 @@ export type Operation = {
   returnComment?: string;
   submittedForReviewAt?: string;
   minutesHtml?: string;
+  assembledByUserId?: UserId;
+  assembledAt?: string;
+  watchlistChecks?: import("@crece/shared").WatchlistCheckSummaryDto[];
   createdBy: UserId;
   createdAt: string;
   updatedAt: string;

@@ -1,8 +1,19 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import {
   DEFAULT_RATES_CONFIG,
   ValidationError,
   money,
+  toUserId,
   type GuaranteeType,
   type ProductType,
 } from "@crece/shared";
@@ -11,6 +22,15 @@ import {
   createChecklistItems,
   evaluateHardRules,
 } from "@crece/domain";
+import {
+  parseCreateDraftOperation,
+  parseFinancialAssessmentInput,
+  parseGuarantorInput,
+  parseUpdateChecklistItem,
+  parseWatchlistCheckInput,
+  toDraftOperationEntity,
+} from "@crece/application";
+import { InMemoryOperationStore } from "./in-memory-operation.store";
 
 const PRODUCTS: ProductType[] = [
   "WORKING_CAPITAL",
@@ -21,12 +41,13 @@ const GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 
 @Controller("operations")
 export class OperationsController {
+  constructor(private readonly store: InMemoryOperationStore) {}
+
   @Get()
-  listStub() {
+  list() {
     return {
-      message:
-        "Listado persistido pendiente de Prisma. Use GET /operations/checklist y POST /operations/calc.",
-      items: [],
+      persistence: "in-memory-contracts",
+      items: this.store.list(),
     };
   }
 
@@ -48,6 +69,151 @@ export class OperationsController {
       hasGuarantor: hasGuarantor === "true",
     });
     return { items, count: items.length };
+  }
+
+  @Get(":id")
+  getOne(@Param("id") id: string) {
+    const op = this.store.get(id);
+    if (!op) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return op;
+  }
+
+  /**
+   * Fase 2: Apertura de solicitud en borrador (DRAFT)
+   */
+  @Post()
+  createDraft(@Body() body: unknown) {
+    const parsed = parseCreateDraftOperation(body);
+    const operation = toDraftOperationEntity(parsed, randomUUID());
+    const stored = this.store.add(operation);
+    return {
+      operationId: stored.id,
+      personId: stored.personId,
+      state: stored.state,
+      checklist: stored.checklist,
+      createdAt: stored.createdAt,
+    };
+  }
+
+  /**
+   * Fase 3: Actualización de casillas del checklist (carga o N/A justificado)
+   */
+  @Patch(":id/checklist")
+  updateChecklist(@Param("id") id: string, @Body() body: unknown) {
+    const payload = asObject(body);
+    const parsed = parseUpdateChecklistItem({
+      ...payload,
+      operationId: id,
+    });
+    const updated = this.store.updateChecklistItem(
+      id,
+      parsed.code,
+      parsed.status,
+      parsed.notApplicableReason,
+      parsed.documentId,
+    );
+    if (!updated) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return {
+      operationId: updated.id,
+      checklist: updated.checklist,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
+  /**
+   * Fase 3: Captura manual de evaluación financiera
+   */
+  @Post(":id/assessment")
+  updateAssessment(@Param("id") id: string, @Body() body: unknown) {
+    const payload = asObject(body);
+    const parsed = parseFinancialAssessmentInput({
+      ...payload,
+      operationId: id,
+    });
+    const updated = this.store.updateAssessment(id, parsed);
+    if (!updated) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return {
+      operationId: updated.id,
+      assessment: updated.assessment,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
+  /**
+   * Fase 3: Registro de fiador opcional
+   */
+  @Post(":id/guarantor")
+  updateGuarantor(@Param("id") id: string, @Body() body: unknown) {
+    const payload = asObject(body);
+    const parsed = parseGuarantorInput({
+      ...payload,
+      operationId: id,
+    });
+    const updated = this.store.updateGuarantor(id, parsed);
+    if (!updated) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return {
+      operationId: updated.id,
+      guarantor: updated.guarantor,
+      guarantorAssessment: updated.guarantorAssessment,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
+  /**
+   * Fase 3: Registro de consulta a listas de control (OFAC, ONU, Guatecompras)
+   */
+  @Post(":id/watchlist")
+  recordWatchlistCheck(@Param("id") id: string, @Body() body: unknown) {
+    const payload = asObject(body);
+    const parsed = parseWatchlistCheckInput({
+      ...payload,
+      operationId: id,
+    });
+    const checkEntry = {
+      id: randomUUID(),
+      operationId: parsed.operationId,
+      source: parsed.source,
+      queryRef: parsed.queryRef,
+      result: parsed.result,
+      checkedByUserId: parsed.checkedByUserId,
+      checkedAt: new Date().toISOString(),
+      notes: parsed.notes,
+    };
+    const updated = this.store.addWatchlistCheck(id, checkEntry);
+    if (!updated) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return {
+      operationId: updated.id,
+      watchlistChecks: updated.watchlistChecks,
+    };
+  }
+
+  /**
+   * Fase 3: Trazabilidad de quién armó el caso
+   */
+  @Post(":id/assemble")
+  setAssembledBy(@Param("id") id: string, @Body() body: { assembledByUserId: string }) {
+    if (!body?.assembledByUserId?.trim()) {
+      throw new ValidationError("assembledByUserId es obligatorio");
+    }
+    const updated = this.store.setAssembledBy(id, toUserId(body.assembledByUserId.trim()));
+    if (!updated) {
+      throw new NotFoundException(`Operación con id ${id} no encontrada`);
+    }
+    return {
+      operationId: updated.id,
+      assembledByUserId: updated.assembledByUserId,
+      assembledAt: updated.assembledAt,
+    };
   }
 
   @Post("calc")
@@ -89,6 +255,12 @@ export class OperationsController {
     });
     return { calcResult, hardRuleHits };
   }
+}
+
+function asObject(body: unknown): Record<string, unknown> {
+  return typeof body === "object" && body !== null
+    ? (body as Record<string, unknown>)
+    : {};
 }
 
 type CalcBody = {

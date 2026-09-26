@@ -10,4 +10,5 @@ export * from "./audit-log";
 export * from "./decision-factors";
 export * from "./document-validity";
 export * from "./operation-amount";
+export * from "./fixtures";
 export { sha256Hex } from "./sha256";

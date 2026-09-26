@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@crece/domain": "workspace:*",
     "@crece/shared": "workspace:*",
     "next": "16.3.6",
     "react": "19.3.0",
