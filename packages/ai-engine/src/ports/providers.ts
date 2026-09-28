@@ -13,9 +13,12 @@ export type OcrRequest = {
   mimeType: string;
   fileName: string;
   annotationSchema?: AnnotationSchema;
-  classifyImages: boolean;
+  /** Si viene, el proveedor clasifica cada imagen extraída con este esquema. */
+  imageClassificationSchema?: AnnotationSchema;
   /** Ignora imágenes menores a este lado en píxeles. */
   imageMinSize?: number;
+  /** Páginas a procesar (0-based); undefined = todas. Acota el costo. */
+  pages?: number[];
 };
 
 export type OcrProvider = {

@@ -43,7 +43,11 @@ services:
     environment:
       API_PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-crece}:${POSTGRES_PASSWORD:-change-me-in-dev}@db:5432/${POSTGRES_DB:-crece_eval}
+      AI_DATABASE_URL: ""
+      AI_LAB_STORAGE_DIR: /lab-storage
       NODE_ENV: development
+    volumes:
+      - crece_lab_storage:/lab-storage
     ports:
       - "${API_PORT:-3001}:3001"
     depends_on:
@@ -59,6 +63,29 @@ services:
       timeout: 5s
       retries: 6
       start_period: 40s
+
+  # Worker del motor de IA: misma imagen que la API, sin HTTP (design D2).
+  ai-worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    profiles: ["dev"]
+    command: ["node", "dist/worker.js"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      AI_WORKER: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-crece}:${POSTGRES_PASSWORD:-change-me-in-dev}@db:5432/${POSTGRES_DB:-crece_eval}
+      AI_DATABASE_URL: ""
+      AI_LAB_STORAGE_DIR: /lab-storage
+      NODE_ENV: development
+    volumes:
+      - crece_lab_storage:/lab-storage
+    depends_on:
+      db:
+        condition: service_healthy
 
   web:
     build:
@@ -91,3 +118,4 @@ services:
 
 volumes:
   crece_pg18_data:
+  crece_lab_storage:

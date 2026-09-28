@@ -4,6 +4,11 @@ export type Clock = {
   now(): Date;
 };
 
+/** Espera entre reintentos; inyectable para que las pruebas no duerman. */
+export type Delay = {
+  wait(ms: number): Promise<void>;
+};
+
 export type IdGenerator = {
   newId(): string;
 };

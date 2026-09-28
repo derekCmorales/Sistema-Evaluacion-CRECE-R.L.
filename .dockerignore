@@ -17,3 +17,5 @@ docs/diagramas/*.png
 openspec
 *.md
 !package.json
+**/*.tsbuildinfo
+**/.lab-storage

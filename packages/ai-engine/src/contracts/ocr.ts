@@ -86,7 +86,15 @@ export type DocumentExtraction = {
   documentType: string;
   schemaCode: string;
   schemaVersion: number;
-  pages: Array<{ index: number; text: string; header?: string; footer?: string; confidence?: number }>;
+  pages: Array<{
+    index: number;
+    text: string;
+    header?: string;
+    footer?: string;
+    confidence?: number;
+    /** La página empieza con la misma tabla con la que terminó la anterior (para el chunker). */
+    tableContinuesFromPrevious?: boolean;
+  }>;
   candidates: ExtractedFieldCandidate[];
   images: Array<{ page: number; id: string; kind: ImageKind; relevant: boolean; description: string }>;
   createdAt: string;

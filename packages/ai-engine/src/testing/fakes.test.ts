@@ -156,7 +156,7 @@ describe("proveedores y runtime falsos", () => {
       pages: [],
       usage: { pagesProcessed: 1 },
     });
-    const request = { bytes: new Uint8Array([1]), mimeType: "application/pdf", fileName: "dpi.pdf", classifyImages: false };
+    const request = { bytes: new Uint8Array([1]), mimeType: "application/pdf", fileName: "dpi.pdf" };
     await expect(ocr.extract(request)).rejects.toThrow("timeout");
     await expect(ocr.extract(request)).resolves.toMatchObject({ model: "fake-ocr-1" });
     expect(ocr.calls).toHaveLength(2);

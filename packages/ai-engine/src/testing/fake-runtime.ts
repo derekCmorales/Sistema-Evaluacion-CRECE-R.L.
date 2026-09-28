@@ -3,6 +3,7 @@ import type {
   AiJob,
   CaseSnapshotSource,
   Clock,
+  Delay,
   DocumentSource,
   Hasher,
   IdGenerator,
@@ -20,6 +21,14 @@ export class FixedClock implements Clock {
   }
   advance(ms: number): void {
     this.current = new Date(this.current.getTime() + ms);
+  }
+}
+
+/** No duerme: registra las esperas pedidas para poder asertarlas. */
+export class RecordingDelay implements Delay {
+  readonly waits: number[] = [];
+  async wait(ms: number): Promise<void> {
+    this.waits.push(ms);
   }
 }
 

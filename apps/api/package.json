@@ -11,7 +11,9 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "ai:smoke": "node dist/scripts/ai-smoke.js"
+    "ai:smoke": "node dist/scripts/ai-smoke.js",
+    "dev:worker": "node --watch dist/worker.js",
+    "start:worker": "node dist/worker.js"
   },
   "files": [
     "dist"

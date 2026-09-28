@@ -6,3 +6,5 @@
 export * from "./contracts";
 export type * from "./ports";
 export * from "./engine-api";
+export { createAiEngine, type AiEngineDeps } from "./engine";
+export { AI_ENGINE_CONFIG_SEED, resolveAiEngineConfig, type AiEngineConfig } from "./config/engine-config";
