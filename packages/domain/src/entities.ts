@@ -45,10 +45,15 @@ export type AiAlertResolution = {
   at: string;
 };
 
+/**
+ * Lo que la IA señaló, con al menos una evidencia verificada. `id` referencia la copia
+ * inmutable en el motor de IA; la resolución es decisión humana y vive aquí.
+ */
 export type AiAlert = {
+  id: string;
   type: import("@crece/shared").AiAlertType;
   message: string;
-  sourceDocumentId: DocumentId;
+  evidence: import("@crece/shared").AiEvidence[];
   resolution?: AiAlertResolution;
 };
 

@@ -8,6 +8,12 @@ export type OcrCandidate = {
   extractedValue: string;
   status: OcrCandidateStatus;
   sourceDocumentId: DocumentId;
+  /** Página de origen (1-based) cuando el proveedor la reporta. */
+  page?: number;
+  /** Confianza del proveedor entre 0 y 1; nunca confirma sola. */
+  confidence?: number;
+  /** Bajo el umbral configurado: la UI lo marca "Revisar: baja confianza". */
+  needsAttention?: boolean;
   correctedValue?: string;
   confirmedAt?: string;
   confirmedBy?: UserId;

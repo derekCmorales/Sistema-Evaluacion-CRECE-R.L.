@@ -132,7 +132,40 @@ export type ProspectInterest = "CREDIT" | "SAVINGS" | "FIXED_TERM";
 
 export type ProspectSource = "LANDING" | "ADVISOR";
 
-export type AiAlertType = "BUREAU_MISMATCH" | "INCOHERENCE" | "OTHER";
+export type AiAlertType =
+  | "BUREAU_MISMATCH"
+  | "INCOHERENCE"
+  | "INJECTION_SUSPECTED"
+  | "MISSING_EVIDENCE"
+  | "OTHER";
+
+export const AI_ALERT_TYPES: readonly AiAlertType[] = [
+  "BUREAU_MISMATCH",
+  "INCOHERENCE",
+  "INJECTION_SUSPECTED",
+  "MISSING_EVIDENCE",
+  "OTHER",
+];
+
+/** De dónde sale lo que una alerta de IA afirma. */
+export type EvidenceSourceType = "DOCUMENT" | "POLICY" | "CALC";
+
+export const EVIDENCE_SOURCE_TYPES: readonly EvidenceSourceType[] = [
+  "DOCUMENT",
+  "POLICY",
+  "CALC",
+];
+
+/**
+ * Evidencia citada por una alerta. `sourceId` es el id del documento, del chunk de
+ * política o el nombre del campo de cálculo; `quote` es el texto citado tal cual.
+ */
+export type AiEvidence = {
+  sourceType: EvidenceSourceType;
+  sourceId: string;
+  quote: string;
+  page?: number;
+};
 
 export type OcrCandidateStatus = "PENDING" | "CONFIRMED" | "CORRECTED" | "DISCARDED";
 
@@ -282,7 +315,20 @@ export const OCR_CANDIDATE_STATUS_LABELS: Record<OcrCandidateStatus, string> = {
 export const AI_ALERT_TYPE_LABELS: Record<AiAlertType, string> = {
   BUREAU_MISMATCH: "Discrepancia en buró",
   INCOHERENCE: "Incoherencia",
+  INJECTION_SUSPECTED: "Posible manipulación del documento",
+  MISSING_EVIDENCE: "Falta evidencia",
   OTHER: "Otro",
+};
+
+export const EVIDENCE_SOURCE_TYPE_LABELS: Record<EvidenceSourceType, string> = {
+  DOCUMENT: "Documento del expediente",
+  POLICY: "Política de CRECE",
+  CALC: "Cálculo",
+};
+
+export const AI_ALERT_RESOLUTION_LABELS: Record<AiAlertResolutionStatus, string> = {
+  CONFIRMED: "Confirmada",
+  DISMISSED: "Descartada",
 };
 
 export const PERSON_STATUS_LABELS: Record<PersonStatus, string> = {

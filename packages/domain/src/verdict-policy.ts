@@ -7,7 +7,6 @@ import type {
   VerdictDecision,
 } from "@crece/shared";
 import { InvariantViolationError } from "@crece/shared";
-import type { AiAlert } from "./entities";
 
 export type Verdict = {
   byUserId: string;
@@ -218,16 +217,6 @@ export function mapDecisionToState(decision: VerdictDecision): OperationState {
       return "REJECTED";
     case "RETURN":
       return "RETURNED_TO_ADVISOR";
-  }
-}
-
-export function hasUnresolvedAiAlerts(alerts: AiAlert[]): boolean {
-  return alerts.some((a) => !a.resolution);
-}
-
-export function assertCanApprove(alerts: AiAlert[]): void {
-  if (hasUnresolvedAiAlerts(alerts)) {
-    throw new InvariantViolationError("Hay alertas de IA sin resolver");
   }
 }
 

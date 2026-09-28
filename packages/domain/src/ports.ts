@@ -11,10 +11,9 @@ import type {
   Office,
   NotificationType,
 } from "@crece/shared";
-import type { CalcEngineInput, CalcResult, FinancialAssessmentInput } from "./calc-engine";
+import type { CalcEngineInput, CalcResult } from "./calc-engine";
 import type { AuditEntry } from "./audit-log";
 import type {
-  AiAlert,
   DecisionFactor,
   DecisionLogEntry,
   DocumentAsset,
@@ -156,28 +155,7 @@ export type AuthGateway = {
   } | null>;
 };
 
-export type OcrProvider = {
-  extractText(storageKey: string): Promise<string>;
-};
-
-export type LlmAssistant = {
-  contrastBureau(
-    declared: FinancialAssessmentInput,
-    ocrText: string,
-    ragHits: string[],
-  ): Promise<AiAlert[]>;
-  checkCoherence(operation: Operation, ragHits: string[]): Promise<AiAlert[]>;
-  buildOnePageSummary(operation: Operation, alerts: AiAlert[]): Promise<string>;
-  draft5C(operation: Operation): Promise<string>;
-};
-
-export type EmbeddingProvider = {
-  embed(text: string): Promise<number[]>;
-};
-
-export type RagStore = {
-  index(id: string, text: string, embedding: number[]): Promise<void>;
-  search(query: string, limit?: number): Promise<string[]>;
-};
+// Los puertos de IA (OCR, embeddings, LLM, base de conocimiento) viven en
+// `@crece/ai-engine`: el dominio de crédito solo conoce `AiAlert` y su resolución.
 
 export type { DocumentId };

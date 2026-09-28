@@ -4,6 +4,7 @@ export * from "./calc-engine";
 export * from "./hard-rules-engine";
 export * from "./verdict-policy";
 export * from "./ocr-confirmation";
+export * from "./ai-alerts";
 export * from "./entities";
 export * from "./ports";
 export * from "./audit-log";
