@@ -273,7 +273,7 @@ erDiagram
 Además: `ai.result_cache` (clave → run), `ai.query_embedding_cache`, `ai.config` (versionada, con auditoría) y `ai.schema_migrations`.
 
 - **Resolución de alertas:** la resolución la registra el proceso de crédito (dominio y auditoría old/new), no el motor. `ai_alert` es la copia inmutable de lo que dijo la IA. El dominio guarda la resolución referenciando `ai_alert.id`.
-- **Migraciones propias del esquema `ai`**, en SQL (`apps/api/src/infrastructure/ai/migrations/*.sql`), con un migrador mínimo y un cliente `pg` propio. No pasan por Prisma. Motivos:
+- **Migraciones propias del esquema `ai`**, en SQL embebido en módulos TS (`apps/api/src/infrastructure/ai/db/migrations/NNN-*.ts`, porque `tsc` no copia `.sql` a `dist`), con un migrador mínimo (advisory lock, checksum sobre la plantilla, guarda de dimensión) y un cliente `pg` propio. No pasan por Prisma. Las semillas de configuración viven en código etiquetadas como seed; `ai.config` guarda solo lo que un administrador cambia. Motivos:
   1. La dimensión del vector es parámetro de la migración (`halfvec(${AI_EMBEDDING_DIMENSIONS})`).
   2. Prisma no modela `halfvec`, HNSW ni columnas generadas `tsvector`.
   3. No bloquea ni choca con el cableado de Prisma de las fases 1–3.

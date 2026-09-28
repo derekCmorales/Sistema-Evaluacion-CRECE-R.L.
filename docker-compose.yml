@@ -6,8 +6,11 @@ name: crece-eval
 
 services:
   db:
-    image: postgres:18-alpine
+    # pgvector sobre PostgreSQL 18 (Debian). Volumen nuevo: el anterior era musl (alpine)
+    # y no se reutiliza para evitar índices con otra collation (design D21).
+    image: pgvector/pgvector:0.8.6-pg18
     restart: unless-stopped
+    command: ["postgres", "-c", "default_toast_compression=lz4"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-crece}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-dev}
@@ -16,7 +19,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       # PG 18: VOLUME oficial es /var/lib/postgresql (no .../data).
-      - crece_pg_data:/var/lib/postgresql
+      - crece_pg18_data:/var/lib/postgresql
     healthcheck:
       test:
         [
@@ -87,4 +90,4 @@ services:
       start_period: 45s
 
 volumes:
-  crece_pg_data:
+  crece_pg18_data:
