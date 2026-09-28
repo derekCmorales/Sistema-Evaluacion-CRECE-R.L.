@@ -2,6 +2,7 @@ import { Inject, Module, type DynamicModule, type OnApplicationShutdown } from "
 import type { AiEnv } from "../../infrastructure/ai/ai-env";
 import { composeAiRuntime, type AiRuntime } from "./ai-runtime";
 import { AI_ENGINE, AI_ENV, AI_RUNTIME } from "./ai.tokens";
+import { LabGuard } from "./lab.guard";
 
 /**
  * Bounded context de IA en Nest. Solo este módulo conoce Nest; el motor vive en
@@ -19,6 +20,7 @@ export class AiModule implements OnApplicationShutdown {
         { provide: AI_ENV, useValue: env },
         { provide: AI_RUNTIME, useFactory: () => composeAiRuntime(env) },
         { provide: AI_ENGINE, useFactory: (runtime: AiRuntime) => runtime.engine, inject: [AI_RUNTIME] },
+        LabGuard,
       ],
       exports: [AI_ENGINE, AI_ENV, AI_RUNTIME],
     };

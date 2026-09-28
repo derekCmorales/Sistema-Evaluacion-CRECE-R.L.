@@ -8,3 +8,4 @@ export * from "./fake-providers";
 export * from "./in-memory-stores";
 export * from "./synthetic-files";
 export * from "./provider-contracts";
+export * from "./lab-fixtures";

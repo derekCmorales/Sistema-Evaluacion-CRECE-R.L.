@@ -5,6 +5,7 @@ import { OperationsModule } from "./modules/operations/operations.module";
 import { ApprovalsModule } from "./modules/approvals/approvals.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { AiModule } from "./modules/ai/ai.module";
+import { LabController } from "./modules/ai/lab.controller";
 import type { AiEnv } from "./infrastructure/ai/ai-env";
 
 @Module({
@@ -19,6 +20,8 @@ import type { AiEnv } from "./infrastructure/ai/ai-env";
 export class AppModule {
   /** El motor de IA entra como módulo aparte; apagado, el resto de la API no cambia. */
   static forRoot(aiEnv: AiEnv): DynamicModule {
-    return { module: AppModule, imports: [AiModule.register(aiEnv)] };
+    // El lab solo se registra fuera de producción y con el flag; su guard lo vuelve a verificar.
+    const controllers = aiEnv.lab.enabled ? [LabController] : [];
+    return { module: AppModule, imports: [AiModule.register(aiEnv, controllers)] };
   }
 }

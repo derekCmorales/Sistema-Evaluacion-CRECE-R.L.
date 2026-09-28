@@ -31,11 +31,11 @@
 
 ## 4. Laboratorio: base y pestaña de extracción
 
-- [ ] 4.1 [api] `LabGuard` (404 si `NODE_ENV=production` o si falta `AI_LAB_ENABLED`) y `lab.controller` que solo delega a los comandos del motor; verificar con `apps/api/src/modules/ai/lab.guard.test.ts` y `lab.controller.test.ts`.
-- [ ] 4.2 [web] `apps/web/lib/crece-ds.tsx` (único puente al bundle del design system, D17) más el layout `/lab/ia` con guarda (`notFound()` fuera de condiciones), tokens y `bundle.css`, navegación por `Tabs` y aviso permanente de "solo datos sintéticos"; verificar a mano en `pnpm dev:web` y con `pnpm --filter @crece/web lint`.
+- [x] 4.1 [api] `LabGuard` (404 si `NODE_ENV=production` o si falta `AI_LAB_ENABLED`) y `lab.controller` que solo delega a los comandos del motor; verificar con `apps/api/src/modules/ai/lab.guard.test.ts` y `lab.controller.test.ts`.
+- [x] 4.2 [web] `apps/web/lib/crece-ds.tsx` (único puente al bundle del design system, D17) más el layout `/lab/ia` con guarda (`notFound()` fuera de condiciones), tokens y `bundle.css`, navegación por `Tabs` y aviso permanente de "solo datos sintéticos"; verificar a mano en `pnpm dev:web` y con `pnpm --filter @crece/web lint`.
 - [ ] 4.3 [web] Pestaña Extracción: subir PDF o imagen y tipo, estado de la ejecución (consulta cada 1–2 s), texto por página junto al original, candidatos con confianza, imágenes clasificadas, latencia y costo; verificar con el punto "Extracción" de `lab-acceptance.md`.
-- [ ] 4.4 [ai-engine] Script de PDFs sintéticos (DPI, buró, recibo, estado de cuenta, PDF con inyección) en `packages/ai-engine/eval/fixtures/` más `eval/extraction-golden.json`; verificar que el script genera los archivos de forma determinística.
-- [ ] 4.5 [docs] Crear `openspec/changes/ai-review-engine/lab-acceptance.md` con el checklist manual por pestaña; se verifica al revisarlo en el PR.
+- [x] 4.4 [ai-engine] Script de PDFs sintéticos (DPI, buró, recibo, estado de cuenta, PDF con inyección) en `packages/ai-engine/eval/fixtures/` más `eval/extraction-golden.json`; verificar que el script genera los archivos de forma determinística.
+- [x] 4.5 [docs] Crear `openspec/changes/ai-review-engine/lab-acceptance.md` con el checklist manual por pestaña; se verifica al revisarlo en el PR.
 
 ## 5. Chunking de políticas
 

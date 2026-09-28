@@ -11,3 +11,4 @@ coverage
 .DS_Store
 *.tsbuildinfo
 .lab-storage
+packages/ai-engine/eval/fixtures/

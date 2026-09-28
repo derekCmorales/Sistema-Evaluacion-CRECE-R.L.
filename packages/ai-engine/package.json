@@ -2,7 +2,7 @@
   "name": "@crece/ai-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Motor de IA de CRECE: bounded context aislado (OCR, conocimiento, generación asistida). Solo expone contratos.",
+  "description": "Motor de IA de CRECE: bounded context aislado (OCR, conocimiento, generaci\u00f3n asistida). Solo expone contratos.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -20,9 +20,12 @@
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:fixtures": "pnpm build && node eval/generate-fixtures.mjs"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@crece/shared": "workspace:*",
     "zod": "4.6.5"

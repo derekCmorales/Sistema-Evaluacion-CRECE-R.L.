@@ -52,3 +52,13 @@ describe("registro de esquemas por tipo de documento", () => {
     expect(json.properties.kind.enum).toContain("LOGO");
   });
 });
+
+describe("catálogo público de tipos de documento", () => {
+  it("cada tipo tiene label es-GT y los campos de su esquema", async () => {
+    const { documentTypeCatalog } = await import("../catalog");
+    const catalog = documentTypeCatalog();
+    expect(catalog.map((c) => c.type)).toEqual([...DOCUMENT_TYPES]);
+    for (const entry of catalog) expect(entry.label.trim()).toBeTruthy();
+    expect(catalog.find((c) => c.type === "BUREAU_REPORT")?.fields.map((f) => f.key)).toContain("total_monthly_payment");
+  });
+});

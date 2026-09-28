@@ -3,7 +3,15 @@
  * PDF válido de N páginas con texto; variantes cifrada y truncada.
  */
 
-const encoder = new TextEncoder();
+/** WinAnsi ≈ Latin-1 para los caracteres del español (á, é, ñ, ¿…): un byte por carácter. */
+function latin1Bytes(text: string): Uint8Array {
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    bytes[i] = code <= 0xff ? code : 0x3f; // fuera de Latin-1 → "?"
+  }
+  return bytes;
+}
 
 function escapePdfText(text: string): string {
   return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
@@ -42,7 +50,7 @@ export function syntheticPdf(pages: string[][], options: { encrypted?: boolean }
   for (let id = 1; id < objects.length; id += 1) pdf += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
   const encrypt = options.encrypted ? " /Encrypt 99 0 R" : "";
   pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R${encrypt} >>\nstartxref\n${xref}\n%%EOF\n`;
-  return encoder.encode(pdf);
+  return latin1Bytes(pdf);
 }
 
 export function truncatedPdf(): Uint8Array {

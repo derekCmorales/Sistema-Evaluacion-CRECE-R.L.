@@ -555,12 +555,13 @@ Versiones verificadas en npm (28 sep 2026):
 
 Para el lab, sin editar `design-system/` (regla del repo):
 
-1. `apps/web/app/lab/ia/layout.tsx` importa `design-system/assets/Platforms/crece-tokens.css` y `design-system/components/bundle.css` por ruta relativa del monorepo (`turbopack.root` apunta a la raíz del monorepo).
-2. **`apps/web/lib/crece-ds.tsx`** (cliente):
-   - asigna `window.React = React`;
-   - importa `bundle.js` por efecto;
-   - re-exporta los componentes desde `window.Crece`, tipados con `index.d.ts`.
-   Es el único punto de contacto con el bundle.
+1. **Los archivos del design system se sirven, no se importan.** `crece-tokens.css` pide sus fuentes en `./fonts/…`, pero ese directorio no existe junto al CSS (las fuentes están en `design-system/fonts/`), así que importarlo con el bundler falla. `apps/web/app/lab/ia/ds/[...asset]/route.ts` sirve una **lista blanca** (tokens, `bundle.css`, `bundle.js` y las dos fuentes, mapeando `fonts/*` → `design-system/fonts/*`), con `nosniff`, y solo con el lab habilitado. Ninguna ruta del cliente llega al sistema de archivos. El layout del lab las enlaza con `<link rel="stylesheet" precedence>`.
+2. **`apps/web/lib/crece-ds.tsx`** (cliente) es el único contacto con el bundle:
+   - asigna `window.React`;
+   - inyecta `<script src="/lab/ia/ds/components.js">` una sola vez;
+   - expone `window.Crece` por contexto (`useCrece()`), tipado con `design-system/components/index.d.ts`.
+
+   Es la forma documentada por el propio design system (`docs/80-plataformas.md`: "`window.Crece.Button`").
 3. **Las páginas del lab son componentes cliente y se renderizan solo en el navegador** (`dynamic(..., { ssr: false })`), porque el bundle necesita `window`. Para una herramienta interna es aceptable.
 4. **Composición:** componentes del catálogo (`PageHeader`, `Tabs`, `FileDrop`, `Select`, `Button`, `DataTable`, `DescriptionList`, `Badge`, `Alert`, `Card`, `Spinner`, `EmptyState`, `ProgressBar`). Lo que falte se compone con clases `cr-*` y variables semánticas (`var(--text-primary)`, `var(--bg-surface)`…). Ni hex ni primitivos.
 5. **Visor de texto OCR y JSON** (monoespaciado): `pre` con tokens de superficie y la fuente `sans` tabular. Si el catálogo no trae un componente de código, se documenta como composición.
