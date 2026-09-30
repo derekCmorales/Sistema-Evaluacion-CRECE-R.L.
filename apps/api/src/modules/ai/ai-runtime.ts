@@ -35,8 +35,9 @@ const HEARTBEAT_EVERY_MS = 15_000;
 const HEARTBEAT_ONLINE_SECONDS = 45;
 /** Barrido de ejecuciones trabadas y purga de respuestas crudas vencidas. */
 const MAINTENANCE_EVERY_MS = 60_000;
-/** Pasada del relay del outbox (API). */
+/** Pasada del relay del outbox (API) y eventos por pasada. */
 const RELAY_EVERY_MS = 1_000;
+const RELAY_BATCH = 20;
 
 export type AiHealth = AiEngineStatus & {
   workersOnline: number;
@@ -181,9 +182,9 @@ export async function composeAiRuntime(env: AiEnv, options: AiRuntimeOptions): P
             // Sin suscriptores no se marca nada como publicado: los eventos esperan a su consumidor.
             if (events.subscriberCount > 0) {
               try {
-                const result = await relay.drain((event) => events.publish(event));
+                const result = await relay.drain((event) => events.publish(event), RELAY_BATCH);
                 if (result.dead) logger.log("error", "ai.outbox.dead-letter", { dead: result.dead });
-                if (result.published === 20) continue; // hay más pendientes: sin esperar
+                if (result.published === RELAY_BATCH) continue; // hay más pendientes: sin esperar
               } catch (error) {
                 logger.log("error", "ai.outbox.error", { errorMessage: (error as Error).message.slice(0, 200) });
               }
