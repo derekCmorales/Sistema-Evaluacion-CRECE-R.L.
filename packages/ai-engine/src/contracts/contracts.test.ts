@@ -83,6 +83,8 @@ describe("hechos del anfitrión y eventos", () => {
   it("AiRunFailed solo acepta códigos de error del catálogo", () => {
     const failed = {
       type: "AiRunFailed",
+      eventId: "e1",
+      schemaVersion: 1,
       runId: "r1",
       occurredAt: "2026-09-28T10:00:00.000Z",
       lab: false,
@@ -93,6 +95,26 @@ describe("hechos del anfitrión y eventos", () => {
     expect(AiEngineEventSchema.safeParse(failed).success).toBe(true);
     expect(AiEngineEventSchema.safeParse({ ...failed, errorCode: "BOOM" }).success).toBe(false);
   });
+
+  it("todo evento lleva eventId (deduplicación del consumidor) y versión de formato", () => {
+    const completed = {
+      type: "DocumentExtractionCompleted",
+      eventId: "e2",
+      schemaVersion: 1,
+      runId: "r1",
+      occurredAt: "2026-09-28T10:00:00.000Z",
+      lab: false,
+      documentRef: "doc-1",
+      extractionId: "x1",
+      candidateCount: 2,
+      needsAttentionCount: 0,
+      injectionSuspected: false,
+    };
+    expect(AiEngineEventSchema.safeParse(completed).success).toBe(true);
+    const { eventId: _eventId, ...withoutId } = completed;
+    expect(AiEngineEventSchema.safeParse(withoutId).success).toBe(false);
+    expect(AiEngineEventSchema.safeParse({ ...completed, schemaVersion: 2 }).success).toBe(false);
+  });
 });
 
 describe("AiEngineError", () => {
@@ -101,5 +123,9 @@ describe("AiEngineError", () => {
     expect(timeout.code).toBe("AI_PROVIDER_TIMEOUT");
     expect(timeout.retryable).toBe(true);
     expect(new AiEngineError("AI_INPUT_ENCRYPTED", "PDF protegido con contraseña").retryable).toBe(false);
+    // Una ejecución interrumpida se puede reintentar; una tarea no disponible o un error interno, no.
+    expect(new AiEngineError("AI_RUN_INTERRUPTED", "x").retryable).toBe(true);
+    expect(new AiEngineError("AI_TASK_UNAVAILABLE", "x").retryable).toBe(false);
+    expect(new AiEngineError("AI_INTERNAL", "x").retryable).toBe(false);
   });
 });

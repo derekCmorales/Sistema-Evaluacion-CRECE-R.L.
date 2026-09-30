@@ -7,7 +7,10 @@ import type {
   RunFilter,
   RunStore,
   RunSuccessPatch,
+  StalledRunsQuery,
+  Transaction,
 } from "@crece/ai-engine";
+import { asTransaction, inTransaction } from "./pg-transaction";
 
 type RunRow = {
   id: string;
@@ -30,6 +33,7 @@ type RunRow = {
   requested_by: string | null;
   forced: boolean;
   is_lab: boolean;
+  retry_of: string | null;
   attempts: number;
   input: unknown;
   created_at: Date;
@@ -62,6 +66,7 @@ function toRun(row: RunRow): AiRun {
     requestedBy: opt(row.requested_by),
     forced: row.forced,
     isLab: row.is_lab,
+    retryOf: opt(row.retry_of),
     attempts: row.attempts,
     input: opt(row.input),
     createdAt: row.created_at.toISOString(),
@@ -78,35 +83,55 @@ async function insertEvents(client: PoolClient, events: AiEngineEvent[]): Promis
   }
 }
 
+const FAILURE_SET = `status = 'FAILED', error_code = $2, error_message = $3, attempts = $4,
+  latency_ms = COALESCE($5, latency_ms), usage = COALESCE($6, usage),
+  guard_report = COALESCE($7, guard_report), finished_at = $8`;
+
+const failureParams = (id: string, failure: RunFailure, at: string) => [
+  id,
+  failure.errorCode,
+  failure.errorMessage,
+  failure.attempts,
+  failure.latencyMs ?? null,
+  json(failure.usage),
+  json(failure.guardReport),
+  at,
+];
+
 export class PgRunStore implements RunStore {
   constructor(private readonly pool: Pool) {}
 
-  async createOrGet(run: NewAiRun): Promise<{ run: AiRun; created: boolean }> {
-    const { rows } = await this.pool.query<RunRow>(
-      `INSERT INTO ai.ai_run (id, task, idempotency_key, operation_id, document_ref, status, requested_by, forced, is_lab, input, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       ON CONFLICT (task, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
-       RETURNING *`,
-      [
-        run.id,
-        run.task,
-        run.idempotencyKey ?? null,
-        run.operationId ?? null,
-        run.documentRef ?? null,
-        run.status ?? "QUEUED",
-        run.requestedBy ?? null,
-        run.forced,
-        run.isLab,
-        json(run.input),
-        run.createdAt,
-      ],
-    );
-    if (rows[0]) return { run: toRun(rows[0]), created: true };
-    const existing = await this.pool.query<RunRow>(
-      "SELECT * FROM ai.ai_run WHERE task = $1 AND idempotency_key = $2",
-      [run.task, run.idempotencyKey],
-    );
-    return { run: toRun(existing.rows[0]!), created: false };
+  async createOrGet(run: NewAiRun, onCreated?: (tx: Transaction) => Promise<void>): Promise<{ run: AiRun; created: boolean }> {
+    return inTransaction(this.pool, async (client) => {
+      const { rows } = await client.query<RunRow>(
+        `INSERT INTO ai.ai_run (id, task, idempotency_key, operation_id, document_ref, status, requested_by, forced, is_lab, retry_of, input, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'QUEUED', $6, $7, $8, $9, $10, $11)
+         ON CONFLICT (task, idempotency_key) WHERE idempotency_key IS NOT NULL AND status <> 'FAILED' DO NOTHING
+         RETURNING *`,
+        [
+          run.id,
+          run.task,
+          run.idempotencyKey ?? null,
+          run.operationId ?? null,
+          run.documentRef ?? null,
+          run.requestedBy ?? null,
+          run.forced,
+          run.isLab,
+          run.retryOf ?? null,
+          json(run.input),
+          run.createdAt,
+        ],
+      );
+      if (rows[0]) {
+        await onCreated?.(asTransaction(client));
+        return { run: toRun(rows[0]), created: true };
+      }
+      const existing = await client.query<RunRow>(
+        "SELECT * FROM ai.ai_run WHERE task = $1 AND idempotency_key = $2 AND status <> 'FAILED'",
+        [run.task, run.idempotencyKey],
+      );
+      return { run: toRun(existing.rows[0]!), created: false };
+    });
   }
 
   async get(id: string): Promise<AiRun | null> {
@@ -114,16 +139,19 @@ export class PgRunStore implements RunStore {
     return rows[0] ? toRun(rows[0]) : null;
   }
 
-  async markRunning(id: string, at: string): Promise<void> {
-    await this.pool.query(
-      "UPDATE ai.ai_run SET status = 'RUNNING', started_at = COALESCE(started_at, $2) WHERE id = $1",
-      [id, at],
+  async claim(id: string, at: string, staleBefore: string): Promise<AiRun | null> {
+    const { rows } = await this.pool.query<RunRow>(
+      `UPDATE ai.ai_run SET status = 'RUNNING', started_at = $2
+       WHERE id = $1 AND (status = 'QUEUED' OR (status = 'RUNNING' AND started_at < $3))
+       RETURNING *`,
+      [id, at, staleBefore],
     );
+    return rows[0] ? toRun(rows[0]) : null;
   }
 
-  async markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<void> {
-    await this.inTransaction(async (client) => {
-      await client.query(
+  async markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<boolean> {
+    return inTransaction(this.pool, async (client) => {
+      const { rowCount } = await client.query(
         `UPDATE ai.ai_run SET
            status = $2,
            model_id = COALESCE($3, model_id),
@@ -137,7 +165,7 @@ export class PgRunStore implements RunStore {
            output = COALESCE($11, output),
            attempts = COALESCE($12, attempts),
            finished_at = $13
-         WHERE id = $1`,
+         WHERE id = $1 AND status = 'RUNNING'`,
         [
           id,
           patch.status ?? "SUCCEEDED",
@@ -154,31 +182,62 @@ export class PgRunStore implements RunStore {
           at,
         ],
       );
+      if (!rowCount) return false;
       await insertEvents(client, events);
+      return true;
     });
   }
 
-  async markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<void> {
-    await this.inTransaction(async (client) => {
-      await client.query(
-        `UPDATE ai.ai_run SET
-           status = 'FAILED', error_code = $2, error_message = $3, attempts = $4,
-           latency_ms = COALESCE($5, latency_ms), usage = COALESCE($6, usage),
-           guard_report = COALESCE($7, guard_report), finished_at = $8
-         WHERE id = $1`,
-        [
-          id,
-          failure.errorCode,
-          failure.errorMessage,
-          failure.attempts,
-          failure.latencyMs ?? null,
-          json(failure.usage),
-          json(failure.guardReport),
-          at,
-        ],
+  async markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<boolean> {
+    return inTransaction(this.pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE ai.ai_run SET ${FAILURE_SET} WHERE id = $1 AND status = 'RUNNING'`,
+        failureParams(id, failure, at),
       );
+      if (!rowCount) return false;
       await insertEvents(client, events);
+      return true;
     });
+  }
+
+  async markInterrupted(
+    id: string,
+    expected: { status: "QUEUED" | "RUNNING"; before: string },
+    failure: RunFailure,
+    at: string,
+    events: AiEngineEvent[],
+  ): Promise<boolean> {
+    const since = expected.status === "QUEUED" ? "created_at" : "started_at";
+    return inTransaction(this.pool, async (client) => {
+      const { rowCount } = await client.query(
+        `UPDATE ai.ai_run SET ${FAILURE_SET} WHERE id = $1 AND status = $9 AND ${since} < $10`,
+        [...failureParams(id, failure, at), expected.status, expected.before],
+      );
+      if (!rowCount) return false;
+      await insertEvents(client, events);
+      return true;
+    });
+  }
+
+  async findStalled(q: StalledRunsQuery): Promise<AiRun[]> {
+    const { rows } = await this.pool.query<RunRow>(
+      `SELECT * FROM ai.ai_run
+       WHERE (status = 'QUEUED' AND created_at < $1) OR (status = 'RUNNING' AND started_at < $2)
+       ORDER BY created_at LIMIT $3`,
+      [q.queuedBefore, q.runningBefore, q.limit],
+    );
+    return rows.map(toRun);
+  }
+
+  async countActive(): Promise<{ queued: number; running: number; oldestQueuedAt: string | null }> {
+    const { rows } = await this.pool.query<{ queued: number; running: number; oldest: Date | null }>(
+      `SELECT count(*) FILTER (WHERE status = 'QUEUED')::int AS queued,
+              count(*) FILTER (WHERE status = 'RUNNING')::int AS running,
+              min(created_at) FILTER (WHERE status = 'QUEUED') AS oldest
+       FROM ai.ai_run WHERE status IN ('QUEUED', 'RUNNING')`,
+    );
+    const row = rows[0]!;
+    return { queued: row.queued, running: row.running, oldestQueuedAt: row.oldest ? row.oldest.toISOString() : null };
   }
 
   async findReusable(q: {
@@ -207,19 +266,5 @@ export class PgRunStore implements RunStore {
       [filter.operationId ?? null, filter.task ?? null, filter.isLab ?? null, filter.limit ?? 50],
     );
     return rows.map(toRun);
-  }
-
-  private async inTransaction(work: (client: PoolClient) => Promise<void>): Promise<void> {
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      await work(client);
-      await client.query("COMMIT");
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
   }
 }

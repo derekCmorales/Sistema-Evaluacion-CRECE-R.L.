@@ -2,10 +2,11 @@ import { createHash } from "node:crypto";
 import type { Pool } from "pg";
 import { AiEngineError } from "@crece/ai-engine";
 import { migration001 } from "./migrations/001-init";
+import { migration002 } from "./migrations/002-run-lifecycle";
 
 export type Migration = { id: string; sql: string };
 
-export const AI_MIGRATIONS: Migration[] = [migration001];
+export const AI_MIGRATIONS: Migration[] = [migration001, migration002];
 
 /** Clave de advisory lock para que API y worker no migren a la vez. */
 const MIGRATION_LOCK_KEY = 725_301_998;

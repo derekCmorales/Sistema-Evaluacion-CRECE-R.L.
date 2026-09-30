@@ -47,11 +47,4 @@ export const ocrProviderContract: ContractCase<OcrProvider>[] = [
       check(typeof payment === "string" && payment.includes("3,200"), `cuota mensual inesperada: ${String(payment)}`);
     },
   },
-  {
-    name: "respeta el límite de páginas solicitado",
-    async run(provider) {
-      const doc = await provider.extract({ ...baseRequest, pages: [0] });
-      check(doc.pages.length === 1 && doc.pages[0]!.index === 1, "no respetó pages=[0]");
-    },
-  },
 ];

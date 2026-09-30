@@ -41,7 +41,6 @@ export function toMistralRequest(request: OcrRequest, model: string): OCRRequest
     confidenceScoresGranularity: "block",
     tableFormat: "markdown",
     ...(request.imageMinSize ? { imageMinSize: request.imageMinSize } : {}),
-    ...(request.pages ? { pages: request.pages } : {}),
     ...(request.annotationSchema
       ? {
           documentAnnotationFormat: responseFormat(request.annotationSchema),
@@ -134,14 +133,28 @@ export function mapMistralError(error: unknown): AiEngineError {
   if (status === 401 || status === 403) {
     return new AiEngineError("AI_PROVIDER_AUTH", "El servicio de OCR rechazó las credenciales");
   }
+  if (status === 404) {
+    // Modelo inexistente o sin acceso: es configuración, no se arregla reintentando.
+    return new AiEngineError("AI_PROVIDER_AUTH", "El modelo de OCR configurado no existe o la cuenta no tiene acceso");
+  }
   if (status === 429) return new AiEngineError("AI_PROVIDER_RATE_LIMITED", "Límite de uso del servicio de OCR");
   if (status === 408 || status === 504) {
     return new AiEngineError("AI_PROVIDER_TIMEOUT", "El servicio de OCR no respondió a tiempo");
   }
-  if (status === 400 || status === 413 || status === 415 || status === 422) {
-    return new AiEngineError("AI_INPUT_CORRUPT", "El servicio de OCR no pudo leer el documento");
+  if (status === 413) return new AiEngineError("AI_INPUT_TOO_LARGE", "El documento supera el tamaño que acepta el servicio de OCR");
+  if (status === 415) return new AiEngineError("AI_INPUT_UNSUPPORTED_TYPE", "El servicio de OCR no admite este tipo de archivo");
+  if (status === 400 || status === 422) {
+    return new AiEngineError("AI_INPUT_CORRUPT", "El servicio de OCR rechazó el documento (ilegible o mal formado)");
   }
   return new AiEngineError("AI_PROVIDER_ERROR", "El servicio de OCR devolvió un error");
+}
+
+/**
+ * Alias de Mistral que cambian de modelo sin aviso («mistral-ocr-latest», «mistral-ocr-4»). La
+ * deduplicación y la reproducibilidad exigen una versión fijada («mistral-ocr-4-1»).
+ */
+export function isMovingMistralAlias(modelId: string): boolean {
+  return /-latest$/i.test(modelId) || /^mistral-ocr-\d+$/i.test(modelId);
 }
 
 export class MistralOcrProvider implements OcrProvider {
@@ -152,6 +165,9 @@ export class MistralOcrProvider implements OcrProvider {
     readonly modelId: string,
     timeoutMs = 120_000,
   ) {
+    if (isMovingMistralAlias(modelId)) {
+      throw new Error(`El modelo de OCR debe ser una versión fijada, no el alias «${modelId}» (p. ej. mistral-ocr-4-1)`);
+    }
     // Sin reintentos del SDK: el motor decide cuándo y cuánto reintentar.
     this.client = new Mistral({ apiKey, timeoutMs, retryConfig: { strategy: "none" } });
   }

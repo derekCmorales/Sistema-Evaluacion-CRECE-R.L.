@@ -2,9 +2,17 @@ import { z } from "zod";
 import { AI_ERROR_CODES } from "./errors";
 import { AiTaskSchema } from "./common";
 
-/** Eventos que el motor publica (vía outbox). Solo referencias: el detalle se consulta. */
+/**
+ * Eventos que el motor publica (vía outbox). Solo referencias: el detalle se consulta.
+ * La entrega es "al menos una vez": el consumidor deduplica por `eventId`.
+ */
+
+/** Versión del formato de eventos; cambia solo con un cambio incompatible. */
+export const AI_EVENT_SCHEMA_VERSION = 1;
 
 const Base = {
+  eventId: z.string().min(1),
+  schemaVersion: z.literal(AI_EVENT_SCHEMA_VERSION),
   runId: z.string().min(1),
   occurredAt: z.string().datetime(),
   lab: z.boolean(),
@@ -18,6 +26,8 @@ export const DocumentExtractionCompletedSchema = z.object({
   extractionId: z.string().min(1),
   candidateCount: z.number().int().nonnegative(),
   needsAttentionCount: z.number().int().nonnegative(),
+  /** Algún texto del documento parece dirigido a una IA: la UI lo muestra para revisión humana. */
+  injectionSuspected: z.boolean(),
 });
 
 export const KnowledgeSourceIndexedSchema = z.object({

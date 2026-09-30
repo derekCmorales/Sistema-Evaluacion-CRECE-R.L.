@@ -15,6 +15,9 @@ export const AI_ERROR_CODES = [
   "AI_OUTPUT_FORBIDDEN",
   "AI_REINDEX_REQUIRED",
   "AI_NOT_FOUND",
+  "AI_TASK_UNAVAILABLE",
+  "AI_RUN_INTERRUPTED",
+  "AI_INTERNAL",
 ] as const;
 
 export type AiErrorCode = (typeof AI_ERROR_CODES)[number];
@@ -24,6 +27,7 @@ export const RETRYABLE_AI_ERROR_CODES: readonly AiErrorCode[] = [
   "AI_PROVIDER_TIMEOUT",
   "AI_PROVIDER_RATE_LIMITED",
   "AI_PROVIDER_ERROR",
+  "AI_RUN_INTERRUPTED",
 ];
 
 /**

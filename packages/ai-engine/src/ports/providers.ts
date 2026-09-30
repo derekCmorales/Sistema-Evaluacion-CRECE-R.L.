@@ -17,8 +17,6 @@ export type OcrRequest = {
   imageClassificationSchema?: AnnotationSchema;
   /** Ignora imágenes menores a este lado en píxeles. */
   imageMinSize?: number;
-  /** Páginas a procesar (0-based); undefined = todas. Acota el costo. */
-  pages?: number[];
 };
 
 export type OcrProvider = {

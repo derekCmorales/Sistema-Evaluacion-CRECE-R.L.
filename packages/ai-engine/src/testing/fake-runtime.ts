@@ -5,10 +5,13 @@ import type {
   Clock,
   Delay,
   DocumentSource,
+  EngineLogger,
+  LogLevel,
   Hasher,
   IdGenerator,
   JobQueue,
   StoredDocument,
+  Transaction,
 } from "../ports";
 
 export class FixedClock implements Clock {
@@ -29,6 +32,14 @@ export class RecordingDelay implements Delay {
   readonly waits: number[] = [];
   async wait(ms: number): Promise<void> {
     this.waits.push(ms);
+  }
+}
+
+/** Logger que guarda cada registro para asertarlo. */
+export class RecordingLogger implements EngineLogger {
+  readonly entries: Array<{ level: LogLevel; event: string; fields: Record<string, string | number | boolean | null> }> = [];
+  log(level: LogLevel, event: string, fields: Record<string, string | number | boolean | null>): void {
+    this.entries.push({ level, event, fields });
   }
 }
 
@@ -56,8 +67,20 @@ export class FakeHasher implements Hasher {
 
 export class InMemoryJobQueue implements JobQueue {
   readonly jobs: AiJob[] = [];
-  async enqueue(job: AiJob): Promise<void> {
+  /** Transacción con la que llegó cada trabajo (para asertar que se encoló dentro de una). */
+  readonly transactions: Array<Transaction | undefined> = [];
+  /** Si se programa, el próximo `enqueue` falla (para probar el rollback de la admisión). */
+  failNext: Error | null = null;
+
+  async enqueue(job: AiJob, tx?: Transaction): Promise<void> {
+    if (this.failNext) {
+      const error = this.failNext;
+      this.failNext = null;
+      throw error;
+    }
+    if (this.jobs.some((j) => j.runId === job.runId)) return; // mismo run: no se duplica
     this.jobs.push(job);
+    this.transactions.push(tx);
   }
   /** Ejecuta y vacía los trabajos pendientes, en orden. */
   async drain(handler: (job: AiJob) => Promise<void>): Promise<void> {

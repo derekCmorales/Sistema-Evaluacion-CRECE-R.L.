@@ -1,27 +1,28 @@
 import { describe, expect, it } from "vitest";
 import type { OCRResponse } from "@mistralai/mistralai/models/components";
-import { fromMistralResponse, mapMistralError, toMistralRequest } from "./mistral-ocr-provider";
+import { fromMistralResponse, isMovingMistralAlias, mapMistralError, MistralOcrProvider, toMistralRequest } from "./mistral-ocr-provider";
 
 const schema = { name: "crece_dpi_v1", jsonSchema: { type: "object" }, prompt: "No infieras." };
 
 describe("toMistralRequest", () => {
   it("PDF en línea, sin imágenes base64, con encabezados/pies separados y confianza por bloque", () => {
     const request = toMistralRequest(
-      { bytes: new Uint8Array([37, 80, 68, 70]), mimeType: "application/pdf", fileName: "dpi.pdf", annotationSchema: schema, pages: [0, 1] },
-      "mistral-ocr-2607",
+      { bytes: new Uint8Array([37, 80, 68, 70]), mimeType: "application/pdf", fileName: "dpi.pdf", annotationSchema: schema },
+      "mistral-ocr-4-1",
     );
     expect(request.document).toEqual({ type: "document_url", documentUrl: "data:application/pdf;base64,JVBERg==", documentName: "dpi.pdf" });
     expect(request).toMatchObject({
-      model: "mistral-ocr-2607",
+      model: "mistral-ocr-4-1",
       includeImageBase64: false,
       extractHeader: true,
       extractFooter: true,
       confidenceScoresGranularity: "block",
-      pages: [0, 1],
       documentAnnotationPrompt: "No infieras.",
       documentAnnotationFormat: { type: "json_schema", jsonSchema: { name: "crece_dpi_v1", strict: true } },
     });
     expect(request.bboxAnnotationFormat).toBeUndefined();
+    // Nunca se pide un rango de páginas adivinado: el preflight ya conoce el total.
+    expect(request).not.toHaveProperty("pages");
   });
 
   it("imágenes van como image_url y la clasificación de imágenes como bbox annotation", () => {
@@ -91,6 +92,9 @@ describe("mapMistralError", () => {
     [{ statusCode: 504 }, "AI_PROVIDER_TIMEOUT", true],
     [{ name: "RequestTimeoutError" }, "AI_PROVIDER_TIMEOUT", true],
     [{ statusCode: 422 }, "AI_INPUT_CORRUPT", false],
+    [{ statusCode: 404 }, "AI_PROVIDER_AUTH", false],
+    [{ statusCode: 413 }, "AI_INPUT_TOO_LARGE", false],
+    [{ statusCode: 415 }, "AI_INPUT_UNSUPPORTED_TYPE", false],
     [{ statusCode: 500 }, "AI_PROVIDER_ERROR", true],
     [new Error("boom"), "AI_PROVIDER_ERROR", true],
   ])("%o → %s", (input, code, retryable) => {
@@ -102,5 +106,16 @@ describe("mapMistralError", () => {
   it("el mensaje nunca incluye el cuerpo de la respuesta", () => {
     const error = mapMistralError({ statusCode: 401, body: '{"detail":"key sk-abc123 invalid"}' });
     expect(error.message).not.toContain("sk-abc123");
+  });
+});
+
+describe("modelo fijado", () => {
+  it("rechaza alias móviles al construir el adaptador", () => {
+    expect(isMovingMistralAlias("mistral-ocr-latest")).toBe(true);
+    expect(isMovingMistralAlias("mistral-ocr-4")).toBe(true);
+    expect(isMovingMistralAlias("mistral-ocr-4-1")).toBe(false);
+    expect(isMovingMistralAlias("mistral-ocr-3-25-12")).toBe(false);
+    expect(() => new MistralOcrProvider("k", "mistral-ocr-latest")).toThrow("versión fijada");
+    expect(new MistralOcrProvider("k", "mistral-ocr-4-1").modelId).toBe("mistral-ocr-4-1");
   });
 });

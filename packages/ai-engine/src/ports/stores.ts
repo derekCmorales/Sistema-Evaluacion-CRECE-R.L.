@@ -2,6 +2,7 @@ import type { AiTask, RunStatus, TokenUsage } from "../contracts/common";
 import type { AiErrorCode } from "../contracts/errors";
 import type { AiEngineEvent } from "../contracts/events";
 import type { DocumentExtraction } from "../contracts/ocr";
+import type { Transaction } from "./runtime";
 
 // ---------------------------------------------------------------- ejecuciones
 
@@ -26,6 +27,8 @@ export type AiRun = {
   requestedBy?: string;
   forced: boolean;
   isLab: boolean;
+  /** Ejecución fallida que esta reintenta (historial). */
+  retryOf?: string;
   attempts: number;
   /** Parámetros del comando (sin datos crudos de documentos). */
   input?: unknown;
@@ -35,7 +38,7 @@ export type AiRun = {
 };
 
 export type NewAiRun = Pick<AiRun, "id" | "task" | "forced" | "isLab" | "createdAt"> &
-  Partial<Pick<AiRun, "idempotencyKey" | "operationId" | "documentRef" | "requestedBy" | "input" | "status">>;
+  Partial<Pick<AiRun, "idempotencyKey" | "operationId" | "documentRef" | "requestedBy" | "input" | "retryOf">>;
 
 export type RunSuccessPatch = Partial<
   Pick<
@@ -69,14 +72,50 @@ export type RunFilter = {
   limit?: number;
 };
 
+export type StalledRunsQuery = {
+  /** QUEUED creadas antes de este instante. */
+  queuedBefore: string;
+  /** RUNNING iniciadas antes de este instante. */
+  runningBefore: string;
+  limit: number;
+};
+
 export type RunStore = {
-  /** Crea la ejecución o, si la clave de idempotencia ya existe, devuelve la existente. */
-  createOrGet(run: NewAiRun): Promise<{ run: AiRun; created: boolean }>;
+  /**
+   * Crea la ejecución en estado QUEUED o, si ya hay una viva (no FAILED) con la misma clave de
+   * idempotencia, devuelve esa. Una FAILED no bloquea la clave: pedir de nuevo crea otra.
+   * `onCreated` corre dentro de la misma transacción, solo si se creó (p. ej. encolar).
+   */
+  createOrGet(
+    run: NewAiRun,
+    onCreated?: (tx: Transaction) => Promise<void>,
+  ): Promise<{ run: AiRun; created: boolean }>;
   get(id: string): Promise<AiRun | null>;
-  markRunning(id: string, at: string): Promise<void>;
-  /** Actualiza la ejecución y publica los eventos en la misma transacción (outbox). */
-  markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<void>;
-  markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<void>;
+  /**
+   * Reclama la ejecución para un worker (compare-and-set): pasa a RUNNING si está QUEUED, o si
+   * está RUNNING con `startedAt` anterior a `staleBefore` (el worker anterior murió). Devuelve
+   * la ejecución reclamada o null si otro la tiene o ya terminó.
+   */
+  claim(id: string, at: string, staleBefore: string): Promise<AiRun | null>;
+  /**
+   * Termina una ejecución RUNNING y publica los eventos en la misma transacción (outbox).
+   * Devuelve false (sin cambios ni eventos) si ya no estaba RUNNING.
+   */
+  markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<boolean>;
+  markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<boolean>;
+  /**
+   * Marca FAILED una ejecución trabada, solo si sigue en `expected.status` desde antes de
+   * `expected.before` (creación para QUEUED, inicio para RUNNING). Devuelve si se aplicó.
+   */
+  markInterrupted(
+    id: string,
+    expected: { status: "QUEUED" | "RUNNING"; before: string },
+    failure: RunFailure,
+    at: string,
+    events: AiEngineEvent[],
+  ): Promise<boolean>;
+  findStalled(query: StalledRunsQuery): Promise<AiRun[]>;
+  countActive(): Promise<{ queued: number; running: number; oldestQueuedAt: string | null }>;
   /** Última ejecución exitosa con la misma entrada, modelo y versión de prompt. */
   findReusable(query: {
     task: AiTask;
@@ -93,8 +132,9 @@ export type RunStore = {
 export type ExtractionKey = {
   fileSha256: string;
   ocrModel: string;
-  schemaCode: string;
-  schemaVersion: number;
+  pipelineFingerprint: string;
+  /** El laboratorio y producción nunca comparten extracciones. */
+  isLab: boolean;
 };
 
 export type ExtractionStore = {

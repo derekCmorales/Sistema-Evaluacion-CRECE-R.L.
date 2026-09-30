@@ -35,14 +35,44 @@ describe("InMemoryRunStore", () => {
     expect(second.run.id).toBe("r1");
   });
 
+  it("una ejecución FAILED no bloquea la clave; si el callback de la transacción falla, no se crea", async () => {
+    const store = new InMemoryRunStore();
+    const base = { task: "EXTRACT" as const, forced: false, isLab: false, createdAt: "2026-09-28T10:00:00.000Z", idempotencyKey: "extract:d" };
+    await store.createOrGet({ ...base, id: "r1" });
+    await store.claim("r1", "2026-09-28T10:00:01.000Z", "2026-09-28T09:45:00.000Z");
+    await store.markFailed("r1", { errorCode: "AI_PROVIDER_TIMEOUT", errorMessage: "x", attempts: 3 }, "t", []);
+    await expect(
+      store.createOrGet({ ...base, id: "r2" }, async () => {
+        throw new Error("cola caída");
+      }),
+    ).rejects.toThrow("cola caída");
+    expect(await store.get("r2")).toBeNull();
+    const retried = await store.createOrGet({ ...base, id: "r3" });
+    expect(retried).toMatchObject({ created: true, run: { id: "r3", status: "QUEUED" } });
+  });
+
+  it("claim es compare-and-set con plazo y las marcas solo aplican sobre RUNNING", async () => {
+    const store = new InMemoryRunStore();
+    await store.createOrGet({ id: "r1", task: "EXTRACT", forced: false, isLab: false, createdAt: "2026-09-28T10:00:00.000Z" });
+    const stale = "2026-09-28T09:45:00.000Z";
+    expect(await store.claim("r1", "2026-09-28T10:00:01.000Z", stale)).toMatchObject({ status: "RUNNING" });
+    expect(await store.claim("r1", "2026-09-28T10:00:02.000Z", stale)).toBeNull();
+    // Pasado el plazo, otro worker la retoma.
+    expect(await store.claim("r1", "2026-09-28T10:20:00.000Z", "2026-09-28T10:05:00.000Z")).not.toBeNull();
+    expect(await store.markSucceeded("r1", {}, "t", [])).toBe(true);
+    expect(await store.markFailed("r1", { errorCode: "AI_INTERNAL", errorMessage: "x", attempts: 0 }, "t", [])).toBe(false);
+    expect((await store.get("r1"))?.status).toBe("SUCCEEDED");
+  });
+
   it("publica eventos junto con el éxito y encuentra resultados reutilizables", async () => {
     const store = new InMemoryRunStore();
     await store.createOrGet({ id: "r1", task: "DRAFT_5C", forced: false, isLab: false, createdAt: "t" });
+    await store.claim("r1", "t1", "t0");
     await store.markSucceeded(
       "r1",
       { inputSha256: "h", modelId: "m", promptVersion: "v1" },
       "t2",
-      [{ type: "Draft5CReady", runId: "r1", occurredAt: "2026-09-28T10:00:00.000Z", lab: false, operationId: "op" }],
+      [{ type: "Draft5CReady", eventId: "e1", schemaVersion: 1, runId: "r1", occurredAt: "2026-09-28T10:00:00.000Z", lab: false, operationId: "op" }],
     );
     expect(store.events).toHaveLength(1);
     const reusable = await store.findReusable({
@@ -60,7 +90,7 @@ describe("InMemoryRunStore", () => {
 });
 
 describe("InMemoryExtractionStore", () => {
-  it("deduplica por hash, modelo y esquema", async () => {
+  it("deduplica por hash, modelo y huella del pipeline, sin cruzar lab y producción", async () => {
     const store = new InMemoryExtractionStore();
     const extraction = {
       id: "e1",
@@ -69,6 +99,8 @@ describe("InMemoryExtractionStore", () => {
       documentType: "DPI",
       schemaCode: "DPI",
       schemaVersion: 1,
+      pipelineFingerprint: "extract-v2:f1",
+      injectionSuspected: false,
       pages: [],
       candidates: [],
       images: [],
@@ -78,6 +110,8 @@ describe("InMemoryExtractionStore", () => {
     await store.save(extraction);
     const again = await store.save({ ...extraction, id: "e2" });
     expect(again.id).toBe("e1");
+    expect((await store.save({ ...extraction, id: "e3", isLab: true })).id).toBe("e3");
+    expect((await store.save({ ...extraction, id: "e4", pipelineFingerprint: "extract-v2:f2" })).id).toBe("e4");
     await store.linkDocument("doc-a", "e1");
     expect((await store.findByDocumentRef("doc-a"))?.id).toBe("e1");
   });

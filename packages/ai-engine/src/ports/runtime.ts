@@ -23,7 +23,24 @@ export type AiJob = {
   runId: string;
 };
 
+/**
+ * Transacción abierta por un store. Es opaca para el motor: solo la pasa de un puerto a otro
+ * para que "crear la ejecución" y "encolar el trabajo" se confirmen juntos (design D2).
+ */
+export type Transaction = { readonly __aiTransaction: unique symbol };
+
 /** Cola persistente: el worker ejecuta `AiEngine.executeRun(runId)`. */
 export type JobQueue = {
-  enqueue(job: AiJob): Promise<void>;
+  /** Con `tx`, el trabajo se inserta en esa transacción; encolar el mismo run dos veces no duplica. */
+  enqueue(job: AiJob, tx?: Transaction): Promise<void>;
+};
+
+export type LogLevel = "info" | "warn" | "error";
+
+/**
+ * Registro estructurado del motor. `fields` nunca lleva contenido de documentos, PII ni
+ * material de credenciales: solo ids, códigos, tiempos y conteos.
+ */
+export type EngineLogger = {
+  log(level: LogLevel, event: string, fields: Record<string, string | number | boolean | null>): void;
 };

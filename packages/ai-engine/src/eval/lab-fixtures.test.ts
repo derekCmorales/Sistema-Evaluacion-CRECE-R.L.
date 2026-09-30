@@ -12,9 +12,9 @@ describe("fixtures sintéticos del laboratorio (golden set de extracción)", () 
     }
   });
 
-  it("cada PDF pasa el preflight con su número de páginas", () => {
+  it("cada PDF pasa el preflight con su número de páginas", async () => {
     for (const fixture of LAB_FIXTURES) {
-      const result = preflightDocument(labFixtureBytes(fixture), { maxFileBytes: 1024 * 1024, maxPages: 60 });
+      const result = await preflightDocument(labFixtureBytes(fixture), { maxFileBytes: 1024 * 1024, maxPages: 60 });
       expect(result.pageCount, fixture.fileName).toBe(fixture.pages.length);
     }
   });

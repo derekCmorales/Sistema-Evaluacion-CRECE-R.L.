@@ -16,17 +16,28 @@ import type {
   RunFilter,
   RunStore,
   RunSuccessPatch,
+  StalledRunsQuery,
+  Transaction,
 } from "../ports";
+
+/** Transacción de mentira: los fakes la reciben y la pasan, como haría Postgres. */
+export const IN_MEMORY_TRANSACTION = Object.freeze({}) as Transaction;
+
+const ACTIVE = new Set(["QUEUED", "RUNNING", "SUCCEEDED", "REUSED"]);
 
 export class InMemoryRunStore implements RunStore {
   readonly runs = new Map<string, AiRun>();
   /** Outbox: eventos publicados junto con el cambio de estado. */
   readonly events: AiEngineEvent[] = [];
 
-  async createOrGet(run: NewAiRun): Promise<{ run: AiRun; created: boolean }> {
+  async createOrGet(
+    run: NewAiRun,
+    onCreated?: (tx: Transaction) => Promise<void>,
+  ): Promise<{ run: AiRun; created: boolean }> {
     if (run.idempotencyKey) {
+      // Igual que el índice único parcial de Postgres: una FAILED no bloquea la clave.
       const existing = [...this.runs.values()].find(
-        (r) => r.idempotencyKey === run.idempotencyKey && r.task === run.task,
+        (r) => r.idempotencyKey === run.idempotencyKey && r.task === run.task && ACTIVE.has(r.status),
       );
       if (existing) return { run: structuredClone(existing), created: false };
     }
@@ -38,6 +49,12 @@ export class InMemoryRunStore implements RunStore {
       ...run,
     };
     this.runs.set(created.id, created);
+    try {
+      await onCreated?.(IN_MEMORY_TRANSACTION);
+    } catch (error) {
+      this.runs.delete(created.id); // rollback
+      throw error;
+    }
     return { run: structuredClone(created), created: true };
   }
 
@@ -46,22 +63,67 @@ export class InMemoryRunStore implements RunStore {
     return run ? structuredClone(run) : null;
   }
 
-  async markRunning(id: string, at: string): Promise<void> {
-    const run = this.require(id);
+  async claim(id: string, at: string, staleBefore: string): Promise<AiRun | null> {
+    const run = this.runs.get(id);
+    if (!run) return null;
+    const stale = run.status === "RUNNING" && (run.startedAt ?? "") < staleBefore;
+    if (run.status !== "QUEUED" && !stale) return null;
     run.status = "RUNNING";
     run.startedAt = at;
+    return structuredClone(run);
   }
 
-  async markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<void> {
+  async markSucceeded(id: string, patch: RunSuccessPatch, at: string, events: AiEngineEvent[]): Promise<boolean> {
     const run = this.require(id);
+    if (run.status !== "RUNNING") return false;
     Object.assign(run, patch, { status: patch.status ?? "SUCCEEDED", finishedAt: at });
     this.events.push(...events);
+    return true;
   }
 
-  async markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<void> {
+  async markFailed(id: string, failure: RunFailure, at: string, events: AiEngineEvent[]): Promise<boolean> {
     const run = this.require(id);
+    if (run.status !== "RUNNING") return false;
     Object.assign(run, failure, { status: "FAILED", finishedAt: at });
     this.events.push(...events);
+    return true;
+  }
+
+  async markInterrupted(
+    id: string,
+    expected: { status: "QUEUED" | "RUNNING"; before: string },
+    failure: RunFailure,
+    at: string,
+    events: AiEngineEvent[],
+  ): Promise<boolean> {
+    const run = this.runs.get(id);
+    if (!run || run.status !== expected.status) return false;
+    const since = expected.status === "QUEUED" ? run.createdAt : (run.startedAt ?? run.createdAt);
+    if (since >= expected.before) return false;
+    Object.assign(run, failure, { status: "FAILED", finishedAt: at });
+    this.events.push(...events);
+    return true;
+  }
+
+  async findStalled(q: StalledRunsQuery): Promise<AiRun[]> {
+    return [...this.runs.values()]
+      .filter(
+        (r) =>
+          (r.status === "QUEUED" && r.createdAt < q.queuedBefore) ||
+          (r.status === "RUNNING" && (r.startedAt ?? r.createdAt) < q.runningBefore),
+      )
+      .slice(0, q.limit)
+      .map((r) => structuredClone(r));
+  }
+
+  async countActive() {
+    const all = [...this.runs.values()];
+    const queued = all.filter((r) => r.status === "QUEUED");
+    return {
+      queued: queued.length,
+      running: all.filter((r) => r.status === "RUNNING").length,
+      oldestQueuedAt: queued.map((r) => r.createdAt).sort()[0] ?? null,
+    };
   }
 
   async findReusable(q: {
@@ -102,8 +164,7 @@ export class InMemoryRunStore implements RunStore {
   }
 }
 
-const extractionKey = (k: ExtractionKey) =>
-  `${k.fileSha256}|${k.ocrModel}|${k.schemaCode}|${k.schemaVersion}`;
+const extractionKey = (k: ExtractionKey) => `${k.fileSha256}|${k.ocrModel}|${k.pipelineFingerprint}|${k.isLab}`;
 
 export class InMemoryExtractionStore implements ExtractionStore {
   readonly extractions = new Map<string, DocumentExtraction>();
@@ -111,15 +172,7 @@ export class InMemoryExtractionStore implements ExtractionStore {
   readonly links = new Map<string, string>();
 
   async findByKey(key: ExtractionKey): Promise<DocumentExtraction | null> {
-    const found = [...this.extractions.values()].find(
-      (e) =>
-        extractionKey({
-          fileSha256: e.fileSha256,
-          ocrModel: e.ocrModel,
-          schemaCode: e.schemaCode,
-          schemaVersion: e.schemaVersion,
-        }) === extractionKey(key),
-    );
+    const found = [...this.extractions.values()].find((e) => extractionKey(e) === extractionKey(key));
     return found ? structuredClone(found) : null;
   }
 

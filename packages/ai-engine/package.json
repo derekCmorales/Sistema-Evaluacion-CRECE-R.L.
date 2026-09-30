@@ -2,7 +2,7 @@
   "name": "@crece/ai-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Motor de IA de CRECE: bounded context aislado (OCR, conocimiento, generaci\u00f3n asistida). Solo expone contratos.",
+  "description": "Motor de IA de CRECE: bounded context aislado (OCR, conocimiento, generación asistida). Solo expone contratos.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -28,6 +28,7 @@
   ],
   "dependencies": {
     "@crece/shared": "workspace:*",
+    "pdf-lib": "1.17.1",
     "zod": "4.6.5"
   },
   "devDependencies": {

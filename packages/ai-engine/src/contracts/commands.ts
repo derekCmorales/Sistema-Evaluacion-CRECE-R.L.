@@ -14,6 +14,16 @@ export const ExtractDocumentCommandSchema = z.object({
 });
 export type ExtractDocumentCommand = z.input<typeof ExtractDocumentCommandSchema>;
 
+/**
+ * Reintentar una ejecución fallida: crea una ejecución nueva con la misma entrada (la fallida
+ * queda como historial). Repetir el comando mientras la nueva sigue viva devuelve la misma.
+ */
+export const RetryRunCommandSchema = z.object({
+  runId: z.string().min(1),
+  requestedBy: RequesterSchema,
+});
+export type RetryRunCommand = z.input<typeof RetryRunCommandSchema>;
+
 /** Ingestar (nueva versión de) una fuente de política. Solo SYSTEM_ADMIN. */
 export const IngestKnowledgeSourceCommandSchema = z.object({
   documentRef: z.string().min(1),

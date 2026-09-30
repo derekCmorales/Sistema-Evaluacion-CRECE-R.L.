@@ -65,17 +65,34 @@ export type OcrDocument = {
   usage: { pagesProcessed: number; docSizeBytes?: number };
 };
 
-/** Campo extraído para confirmación humana; el anfitrión lo mapea a `OcrCandidate` del dominio. */
+/**
+ * Campo extraído para confirmación humana; el anfitrión lo mapea a `OcrCandidate` del dominio.
+ * El `id` es estable dentro de la extracción; como una extracción deduplicada se comparte entre
+ * documentos con los mismos bytes, el anfitrión identifica una confirmación por (documentRef, id).
+ */
 export type ExtractedFieldCandidate = {
   id: string;
   fieldKey: string;
   fieldLabel: string;
   value: string;
   page?: number;
+  /** Región del bloque donde se ubicó el valor, si el proveedor la devolvió. */
+  bbox?: BoundingBox;
   confidence?: number;
   needsAttention: boolean;
   /** Motivo legible cuando `needsAttention` (baja confianza, formato dudoso…). */
   attentionReason?: string;
+};
+
+/**
+ * Texto del documento con forma de instrucción dirigida a una IA. Es una señal para revisión
+ * humana, nunca un bloqueo: el documento se procesa igual como dato.
+ */
+export type InjectionSignal = {
+  /** Id del patrón que coincidió (configuración `safety.injectionPatterns`). */
+  patternId: string;
+  /** Fragmento del texto de la página (máx. 160 caracteres) para ubicarlo. */
+  excerpt: string;
 };
 
 /** Resultado normalizado de una extracción (lo que el motor persiste y expone). */
@@ -86,6 +103,13 @@ export type DocumentExtraction = {
   documentType: string;
   schemaCode: string;
   schemaVersion: number;
+  /**
+   * Huella de todo lo que determina el resultado (versión del pipeline, esquema y prompt de
+   * anotación, clasificador de imágenes, parámetros). Forma parte de la clave de deduplicación.
+   */
+  pipelineFingerprint: string;
+  /** Hay al menos una señal de inyección en alguna página. */
+  injectionSuspected: boolean;
   pages: Array<{
     index: number;
     text: string;
@@ -94,8 +118,13 @@ export type DocumentExtraction = {
     confidence?: number;
     /** La página empieza con la misma tabla con la que terminó la anterior (para el chunker). */
     tableContinuesFromPrevious?: boolean;
+    injectionSignals?: InjectionSignal[];
   }>;
   candidates: ExtractedFieldCandidate[];
+  /**
+   * Imágenes clasificadas. `description` la genera el modelo de OCR: es texto del proveedor, no
+   * del documento, por eso vive aparte de `pages[].text` y nunca sirve como cita de evidencia.
+   */
   images: Array<{ page: number; id: string; kind: ImageKind; relevant: boolean; description: string }>;
   createdAt: string;
   isLab: boolean;

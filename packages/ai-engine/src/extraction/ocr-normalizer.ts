@@ -1,10 +1,11 @@
 import type {
+  BoundingBox,
   DocumentExtraction,
   ExtractedFieldCandidate,
   OcrDocument,
-  OcrImage,
   OcrPage,
 } from "../contracts/ocr";
+import { detectInjection, stripInvisible, type CompiledInjectionPatterns } from "../guards/injection-detector";
 import type { DocumentSchema } from "./document-schemas";
 import { normalizeFieldValue } from "./value-normalizers";
 
@@ -20,28 +21,16 @@ export function comparable(text: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
-function imageDescription(image: OcrImage): string | null {
-  const c = image.classification;
-  if (!c || DISCARDED_IMAGE_KINDS.has(c.kind)) return null;
-  if (PRESENCE_ONLY[c.kind]) return PRESENCE_ONLY[c.kind]!;
-  return c.relevant ? c.description.trim() : null;
-}
-
 /**
- * Normaliza el markdown de una página (design D5): NFC, palabras partidas por guion al final de
- * línea, espacios, números de página y marcadores de imagen (se reemplazan por su descripción si
- * es relevante; logos y decoración desaparecen).
+ * Normaliza el markdown de una página (design D5): NFC, sin caracteres invisibles, palabras
+ * partidas por guion al final de línea, espacios y números de página. Los marcadores de imagen
+ * se quitan: la descripción de una imagen la escribe el modelo de OCR, así que vive en
+ * `images` y nunca se mezcla con el texto del documento (que es lo único citable como evidencia).
  */
-export function normalizePageText(markdown: string, images: OcrImage[] = []): string {
-  const byId = new Map(images.map((img) => [img.id, img]));
-  return markdown
-    .normalize("NFC")
+export function normalizePageText(markdown: string): string {
+  return stripInvisible(markdown.normalize("NFC"))
     .replace(/\r\n?/g, "\n")
-    .replace(/!\[[^\]]*\]\(([^)]+)\)/g, (_all, id: string) => {
-      const image = byId.get(id);
-      const description = image ? imageDescription(image) : null;
-      return description ? `[Imagen: ${description}]` : "";
-    })
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/(\p{L})-\n(\p{Ll})/gu, "$1$2")
     .split("\n")
     .map((line) => (line.trimStart().startsWith("|") ? line.trimEnd() : line.replace(/[ \t]+/g, " ").trim()))
@@ -61,7 +50,7 @@ function lastTableHeader(text: string): string | null {
 
 const firstLine = (text: string) => text.split("\n")[0] ?? "";
 
-type LocatedValue = { page?: number; confidence?: number };
+type LocatedValue = { page?: number; confidence?: number; bbox?: BoundingBox };
 
 const tokens = (text: string) =>
   text
@@ -72,8 +61,8 @@ const tokens = (text: string) =>
     .filter(Boolean);
 
 /**
- * Ubica un valor en el texto para darle página y confianza. Valores de 2+ caracteres: por
- * subcadena comparable. Valores cortos ("7", "0"): la línea debe contener el valor como token
+ * Ubica un valor en el texto para darle página, confianza y región. Valores de 2+ caracteres:
+ * por subcadena comparable. Valores cortos ("7", "0"): la línea debe contener el valor como token
  * aislado y alguna palabra de la etiqueta del campo; si no, se considera no encontrado.
  */
 function locate(value: string, raw: string, label: string, pages: OcrPage[], normalizedTexts: string[]): LocatedValue {
@@ -95,7 +84,11 @@ function locate(value: string, raw: string, label: string, pages: OcrPage[], nor
     }
     if (!hit) continue;
     const block = page.blocks.find((b) => hit!(b.text));
-    return { page: page.index, confidence: block?.confidence ?? page.confidence };
+    return {
+      page: page.index,
+      ...((block?.confidence ?? page.confidence) != null ? { confidence: block?.confidence ?? page.confidence } : {}),
+      ...(block?.bbox ? { bbox: block.bbox } : {}),
+    };
   }
   return {};
 }
@@ -106,38 +99,52 @@ export type BuildExtractionInput = {
   documentType: string;
   schemaCode: string;
   schemaVersion: number;
+  pipelineFingerprint: string;
   schema: DocumentSchema | null;
   ocr: OcrDocument;
   confidenceThreshold: number;
+  injectionPatterns: CompiledInjectionPatterns;
   createdAt: string;
   isLab: boolean;
 };
 
+const INJECTION_ATTENTION = "La página contiene texto dirigido a una IA: verificar el valor contra el documento";
+
 /**
- * Traduce el `OcrDocument` del proveedor a una extracción del motor: páginas normalizadas,
- * candidatos para confirmación humana (nunca confirmados) e imágenes clasificadas.
+ * Traduce el `OcrDocument` del proveedor a una extracción del motor: páginas normalizadas con
+ * sus señales de inyección, candidatos para confirmación humana (nunca confirmados) e imágenes
+ * clasificadas.
  */
 export function buildExtraction(input: BuildExtractionInput): DocumentExtraction {
   const { ocr } = input;
-  const texts = ocr.pages.map((p) => normalizePageText(p.markdown, p.images));
+  const texts = ocr.pages.map((p) => normalizePageText(p.markdown));
 
   const pages: DocumentExtraction["pages"] = ocr.pages.map((page, i) => {
     const previousHeader = i > 0 ? lastTableHeader(texts[i - 1]!) : null;
+    // Encabezado, pie y descripciones de imágenes también se revisan: una instrucción puede
+    // esconderse ahí (p. ej. texto dentro de una imagen que el OCR describe).
+    const imageTexts = page.images.map((img) => img.classification?.description ?? "");
+    const signals = detectInjection(
+      [page.header ?? "", texts[i]!, page.footer ?? "", ...imageTexts].join("\n"),
+      input.injectionPatterns,
+    );
     return {
       index: page.index,
       text: texts[i]!,
-      ...(page.header ? { header: page.header.trim() } : {}),
-      ...(page.footer ? { footer: page.footer.trim() } : {}),
+      ...(page.header ? { header: stripInvisible(page.header).trim() } : {}),
+      ...(page.footer ? { footer: stripInvisible(page.footer).trim() } : {}),
       ...(page.confidence != null ? { confidence: page.confidence } : {}),
       ...(previousHeader && firstLine(texts[i]!) === previousHeader ? { tableContinuesFromPrevious: true } : {}),
+      ...(signals.length ? { injectionSignals: signals } : {}),
     };
   });
+  const pagesWithSignals = new Set(pages.filter((p) => p.injectionSignals?.length).map((p) => p.index));
 
   const candidates: ExtractedFieldCandidate[] = [];
   for (const field of input.schema?.fields ?? []) {
     const raw = ocr.annotation?.[field.key];
     if (raw == null) continue;
-    const rawText = String(raw).trim();
+    const rawText = stripInvisible(String(raw)).trim();
     if (!rawText || rawText.toLowerCase() === "null") continue;
 
     const normalized = normalizeFieldValue(field.type, rawText);
@@ -148,12 +155,17 @@ export function buildExtraction(input: BuildExtractionInput): DocumentExtraction
     if (located.confidence != null && located.confidence < input.confidenceThreshold) {
       reasons.push("Revisar: baja confianza");
     }
+    // Un valor ubicado en una página con instrucciones para la IA pudo ser plantado ahí.
+    if (located.page != null ? pagesWithSignals.has(located.page) : pagesWithSignals.size > 0) {
+      reasons.push(INJECTION_ATTENTION);
+    }
     candidates.push({
       id: `${input.id}:${field.key}`,
       fieldKey: field.key,
       fieldLabel: field.label,
       value: normalized.value,
       ...(located.page != null ? { page: located.page } : {}),
+      ...(located.bbox ? { bbox: located.bbox } : {}),
       ...(located.confidence != null ? { confidence: located.confidence } : {}),
       needsAttention: reasons.length > 0,
       ...(reasons.length ? { attentionReason: reasons.join(" · ") } : {}),
@@ -170,7 +182,7 @@ export function buildExtraction(input: BuildExtractionInput): DocumentExtraction
         id: image.id,
         kind: c.kind,
         relevant: PRESENCE_ONLY[c.kind] ? false : c.relevant,
-        description: PRESENCE_ONLY[c.kind] ?? c.description.trim(),
+        description: PRESENCE_ONLY[c.kind] ?? stripInvisible(c.description).trim(),
       });
     }
   }
@@ -182,6 +194,8 @@ export function buildExtraction(input: BuildExtractionInput): DocumentExtraction
     documentType: input.documentType,
     schemaCode: input.schemaCode,
     schemaVersion: input.schemaVersion,
+    pipelineFingerprint: input.pipelineFingerprint,
+    injectionSuspected: pagesWithSignals.size > 0,
     pages,
     candidates,
     images,
