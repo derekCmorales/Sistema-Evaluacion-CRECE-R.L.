@@ -4,6 +4,8 @@ import {
   MOCK_DRAFT_OPERATION_WITH_GUARANTOR,
   MOCK_WATCHLIST_CHECKS,
   type Operation,
+  type CalcResult,
+  type HardRuleHit,
 } from "@crece/domain";
 import type {
   ChecklistItemStatus,
@@ -35,6 +37,10 @@ export class InMemoryOperationStore {
 
   list(): Operation[] {
     return [...this.operations.values()];
+  }
+
+  getByPersonId(personId: string): Operation[] {
+    return [...this.operations.values()].filter((op) => op.personId === personId);
   }
 
   get(id: string): Operation | undefined {
@@ -159,6 +165,25 @@ export class InMemoryOperationStore {
       ...op,
       assembledByUserId: userId,
       assembledAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.operations.set(operationId, updatedOp);
+    return updatedOp;
+  }
+
+  updateCalcResult(
+    operationId: string,
+    calcResult: CalcResult,
+    hardRuleHits: HardRuleHit[],
+  ): Operation | undefined {
+    const op = this.operations.get(operationId);
+    if (!op) return undefined;
+
+    const updatedOp: Operation = {
+      ...op,
+      calcResult,
+      hardRuleHits,
       updatedAt: new Date().toISOString(),
     };
 
