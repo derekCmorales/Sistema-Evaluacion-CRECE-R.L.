@@ -10,16 +10,24 @@ import {
 import { randomUUID } from "node:crypto";
 import { parseCreatePerson, toPersonEntity } from "@crece/application";
 import { InMemoryPersonStore } from "./in-memory-person.store";
+import { InMemoryOperationStore } from "../operations/in-memory-operation.store";
 
 @Controller("persons")
 export class PersonsController {
-  constructor(private readonly store: InMemoryPersonStore) {}
+  constructor(
+    private readonly store: InMemoryPersonStore,
+    private readonly opStore: InMemoryOperationStore,
+  ) {}
 
   @Get()
   list() {
+    const items = this.store.list().map((p) => ({
+      ...p,
+      operationsCount: this.opStore.getByPersonId(p.id).length,
+    }));
     return {
       persistence: "in-memory-contracts",
-      items: this.store.list(),
+      items,
     };
   }
 
@@ -33,7 +41,12 @@ export class PersonsController {
     if (!person) {
       throw new NotFoundException(`No existe persona registrada con DPI ${dpi}`);
     }
-    return person;
+    const operations = this.opStore.getByPersonId(person.id);
+    return {
+      ...person,
+      operationsCount: operations.length,
+      operations,
+    };
   }
 
   @Get(":id")
@@ -42,7 +55,31 @@ export class PersonsController {
     if (!person) {
       throw new NotFoundException(`Persona con id ${id} no encontrada`);
     }
-    return person;
+    const operations = this.opStore.getByPersonId(person.id);
+    return {
+      ...person,
+      operationsCount: operations.length,
+      operations,
+    };
+  }
+
+  /**
+   * Historial de expedientes previos de la persona (Fase 1).
+   */
+  @Get(":id/operations")
+  getPersonOperations(@Param("id") id: string) {
+    const person = this.store.getById(id);
+    if (!person) {
+      throw new NotFoundException(`Persona con id ${id} no encontrada`);
+    }
+    const operations = this.opStore.getByPersonId(person.id);
+    return {
+      personId: person.id,
+      fullName: person.fullName,
+      dpi: person.dpi,
+      operations,
+      count: operations.length,
+    };
   }
 
   /**
