@@ -39,6 +39,10 @@ export class InMemoryOperationStore {
     return [...this.operations.values()];
   }
 
+  getByPersonId(personId: string): Operation[] {
+    return [...this.operations.values()].filter((op) => op.personId === personId);
+  }
+
   get(id: string): Operation | undefined {
     return this.operations.get(id);
   }
@@ -187,4 +191,3 @@ export class InMemoryOperationStore {
     return updatedOp;
   }
 }
-

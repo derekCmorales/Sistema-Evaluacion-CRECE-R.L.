@@ -52,10 +52,11 @@ export class OperationsController {
   ) {}
 
   @Get()
-  list() {
+  list(@Query("personId") personId?: string) {
+    const items = personId ? this.store.getByPersonId(personId) : this.store.list();
     return {
       persistence: "in-memory-contracts",
-      items: this.store.list(),
+      items,
     };
   }
 
@@ -138,6 +139,14 @@ export class OperationsController {
   }
 
   /**
+   * Fase 3: Estado de completitud del expediente
+   */
+  @Get(":id/assembly-status")
+  getAssemblyStatus(@Param("id") id: string) {
+    return this.caseAssemblyStatusService.evaluate(id);
+  }
+
+  /**
    * Fase 3: Trazabilidad de quién armó el caso
    */
   @Post(":id/assemble")
@@ -154,14 +163,6 @@ export class OperationsController {
       assembledByUserId: updated.assembledByUserId,
       assembledAt: updated.assembledAt,
     };
-  }
-
-  /**
-   * Fase 3: Estado de completitud del expediente
-   */
-  @Get(":id/assembly-status")
-  getAssemblyStatus(@Param("id") id: string) {
-    return this.caseAssemblyStatusService.evaluate(id);
   }
 
   @Post("calc")
