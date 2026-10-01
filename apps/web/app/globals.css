@@ -1,86 +1,87 @@
-@import "tailwindcss";
-@import "../../../design-system/assets/Platforms/crece-tokens.css";
-@import "../../../design-system/components/bundle.css";
-
-:root {
-  --background: var(--bg-canvas);
-  --foreground: var(--text-body);
-}
-
-@theme inline {
-  --color-background: var(--bg-canvas);
-  --color-foreground: var(--text-body);
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
-}
+/*
+ * Pegamento de layout. Todo lo visual sale del design system (tokens en /ds/crece-tokens.css,
+ * componentes en /ds/bundle.css): aquí solo hay disposición y siempre con tokens.
+ */
 
 html,
 body {
+  margin: 0;
   min-height: 100%;
-  height: 100%;
-}
-
-body {
   background: var(--bg-canvas);
   color: var(--text-body);
   font-family: var(--font-sans);
 }
 
-/* App Shell y Sidebar consistentes e inmunes al tamaño del contenido de la página */
-.cr-app-shell {
+.app-frame {
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex;
-  width: 100%;
-  background: var(--bg-subtle);
 }
 
-.cr-sidebar {
+.app-frame .cr-sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
   height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-  width: var(--sidebar);
-  flex: none;
-  display: flex;
-  flex-direction: column;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  background: var(--bg-surface);
-  border-right: var(--border-hairline) solid var(--border-default);
-  box-sizing: border-box;
 }
 
-.cr-app-shell__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--bg-subtle);
+.app-frame .app-frame__menu {
+  display: none;
 }
 
-.cr-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--bg-surface);
+.app-frame__scrim {
+  display: none;
 }
 
-/* Ajustes de layout para evitar separación excesiva entre sidebar y contenido central */
-.cr-app-shell__content {
-  flex: 1;
-  margin: 0;
-  max-width: 1560px;
-  width: 100%;
-  padding: var(--space-6) var(--space-8);
-  display: flex;
-  flex-direction: column;
+/* Bajo 1024px la barra lateral se vuelve cajón (design-system/components/Sidebar). */
+@media (max-width: 1023px) {
+  .app-frame .cr-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--z-drawer);
+    transform: translateX(-100%);
+    transition: transform var(--duration-base) var(--ease-brand);
+  }
+
+  .app-frame[data-nav-open="true"] .cr-sidebar {
+    transform: none;
+    box-shadow: var(--elevation-3);
+  }
+
+  .app-frame[data-nav-open="true"] .app-frame__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-drawer) - 1);
+    background: var(--overlay);
+  }
+
+  .app-frame .app-frame__menu {
+    display: inline-flex;
+  }
+
+  .app-frame .cr-app-shell__content {
+    padding: var(--space-5);
+  }
+}
+
+/* Detalle + panel lateral (grilla 1.5/1 de design-system/docs/40-pantallas.md). */
+.layout-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: var(--space-6);
+  align-items: start;
 }
 
+@media (max-width: 1023px) {
+  .layout-detail {
+    grid-template-columns: 1fr;
+  }
+}
 
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}

@@ -166,13 +166,15 @@ describe("armado del expediente (fase 3)", () => {
 
   it("fuera de borrador el expediente no se edita", async () => {
     await ctx.deps.operations.update({ ...ctx.operation(operationId)!, state: "UNDER_REVIEW" });
+    expect((await getCaseFile(ctx.deps, advisor, operationId)).canEdit).toBe(false);
     await expect(recordFinancialAssessment(ctx.deps, advisor, operationId, assessment)).rejects.toBeInstanceOf(
       InvariantViolationError,
     );
   });
 
   it("consultar ≠ operar: Vigilancia ve el expediente pero no lo edita", async () => {
-    await expect(getCaseFile(ctx.deps, oversight, operationId)).resolves.toBeDefined();
+    expect((await getCaseFile(ctx.deps, oversight, operationId)).canEdit).toBe(false);
+    expect((await getCaseFile(ctx.deps, advisor, operationId)).canEdit).toBe(true);
     await expect(
       updateChecklistItem(ctx.deps, oversight, operationId, { code: "DPI", status: "UPLOADED" }),
     ).rejects.toBeInstanceOf(ForbiddenError);

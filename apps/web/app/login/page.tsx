@@ -1,20 +1,50 @@
-import Link from "next/link";
+"use client";
 
-export default function LoginPlaceholder() {
+import { useRouter } from "next/navigation";
+import { CreceProvider, useCrece } from "../../lib/crece-ds";
+import { DEV_USERS, SessionProvider, useSession } from "../../lib/session";
+
+/** A-01: mientras no exista autenticación, aquí se elige la sesión de prueba. */
+function DevLogin() {
+  const { Card, PageHeader, ListItem, List, Alert, Icons } = useCrece();
+  const { setUserId } = useSession();
+  const router = useRouter();
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-6">
-      <div className="bg-white shadow-sm border rounded-lg p-8 max-w-md w-full">
-        <h1 className="text-xl font-semibold text-[#034381] mb-2">
-          Iniciar sesión
-        </h1>
-        <p className="text-sm text-zinc-600 mb-6">
-          Autenticación no implementada en bootstrap. Integración futura vía API
-          Nest y `AuthGateway`.
-        </p>
-        <Link href="/" className="text-sm text-[#e8973c] hover:underline">
-          Volver al inicio
-        </Link>
+    <main className="cr-root" style={{ maxWidth: 560, margin: "0 auto", padding: "var(--space-12) var(--space-5)" }}>
+      <div className="cr-stack">
+        <PageHeader overline="CRECE · Evaluación" title="Iniciar sesión" description="La autenticación llega con su propio change (AuthGateway)." />
+        <Alert tone="warning" title="Sesión de prueba">
+          Elige con qué cargos probar el sistema. La API valida cada permiso, pero esto no es seguridad: no se despliega así.
+        </Alert>
+        <Card>
+          <List>
+            {DEV_USERS.map((user) => (
+              <ListItem
+                key={user.id}
+                icon={Icons.UserCircle}
+                title={user.name}
+                description={user.description}
+                chevron
+                onClick={() => {
+                  setUserId(user.id);
+                  router.push("/dashboard");
+                }}
+              />
+            ))}
+          </List>
+        </Card>
       </div>
-    </div>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <CreceProvider>
+      <SessionProvider>
+        <DevLogin />
+      </SessionProvider>
+    </CreceProvider>
   );
 }

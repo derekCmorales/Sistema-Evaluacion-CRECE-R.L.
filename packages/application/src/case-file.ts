@@ -5,10 +5,11 @@ import {
   WATCHLIST_SOURCES_SEED,
   toOperationId,
   type Actor,
-  type OperationListItem,
+  type CaseFileListItem,
   type WatchlistSource,
 } from "@crece/shared";
 import {
+  CASE_EDITABLE_STATES,
   applyChecklistUpdate,
   applyGuarantor,
   assertCaseEditable,
@@ -23,6 +24,7 @@ import {
   type Operation,
 } from "@crece/domain";
 import { assertPermission } from "./actor";
+import { hasPermission } from "./rbac";
 import { appendAudit, toOperationListItem, type CaptureDeps } from "./capture-deps";
 import {
   parseChecklistItemUpdate,
@@ -41,6 +43,8 @@ import { requirePerson } from "./person-intake";
 export type CaseFile = {
   operation: Operation;
   assembly: CaseAssemblyStatus;
+  /** Si quien consulta puede editar el expediente ahora (permiso y estado editable). */
+  canEdit: boolean;
 };
 
 /** Fase 2: abre la solicitud en borrador sobre una persona que ya existe y tiene DPI. */
@@ -74,14 +78,8 @@ export async function openDraftOperation(deps: CaptureDeps, actor: Actor, body: 
     field: "requestedAmount",
     newValue: operation.requestedAmount.amount,
   });
-  return withAssembly(deps, operation);
+  return withAssembly(deps, actor, operation);
 }
-
-export type CaseFileListItem = OperationListItem & {
-  personName: string;
-  readyForReview: boolean;
-  gapsCount: number;
-};
 
 /** Cola de expedientes (más reciente primero) con su avance de armado. */
 export async function listCaseFiles(deps: CaptureDeps, actor: Actor): Promise<CaseFileListItem[]> {
@@ -107,7 +105,7 @@ export async function listCaseFiles(deps: CaptureDeps, actor: Actor): Promise<Ca
 
 export async function getCaseFile(deps: CaptureDeps, actor: Actor, operationId: string): Promise<CaseFile> {
   assertPermission(actor, "operation:read");
-  return withAssembly(deps, await requireOperation(deps, operationId));
+  return withAssembly(deps, actor, await requireOperation(deps, operationId));
 }
 
 export async function updateChecklistItem(
@@ -129,7 +127,7 @@ export async function updateChecklistItem(
     oldValue: previous?.status,
     newValue: update.status,
   });
-  return withAssembly(deps, saved);
+  return withAssembly(deps, actor, saved);
 }
 
 /** Evaluación capturada a mano; el motor calcula y las reglas duras avisan o bloquean. */
@@ -151,7 +149,7 @@ export async function recordFinancialAssessment(
     oldValue: operation.calcResult?.inputsHash,
     newValue: saved.calcResult?.inputsHash,
   });
-  return withAssembly(deps, saved);
+  return withAssembly(deps, actor, saved);
 }
 
 export async function setGuarantor(
@@ -172,7 +170,7 @@ export async function setGuarantor(
     oldValue: String(operation.hasGuarantor),
     newValue: String(saved.hasGuarantor),
   });
-  return withAssembly(deps, saved);
+  return withAssembly(deps, actor, saved);
 }
 
 /** Registro manual de la consulta: el sistema no consulta las listas por sí mismo. */
@@ -194,7 +192,7 @@ export async function recordWatchlistCheck(
     field: input.source,
     newValue: input.result,
   });
-  return withAssembly(deps, saved);
+  return withAssembly(deps, actor, saved);
 }
 
 /** Constancia de quién armó el expediente; solo con el expediente sin huecos. */
@@ -208,7 +206,7 @@ export async function markCaseAssembled(deps: CaptureDeps, actor: Actor, operati
     action: "CASE_ASSEMBLED",
     byUserId: actor.userId,
   });
-  return withAssembly(deps, saved);
+  return withAssembly(deps, actor, saved);
 }
 
 export async function getOperationHistory(
@@ -263,6 +261,10 @@ function watchlistSources(deps: CaptureDeps): Promise<WatchlistSource[]> {
   return deps.config.get(CASE_ASSEMBLY_CONFIG_KEYS.watchlistSources, WATCHLIST_SOURCES_SEED);
 }
 
-async function withAssembly(deps: CaptureDeps, operation: Operation): Promise<CaseFile> {
-  return { operation, assembly: evaluateCaseAssembly(operation, await watchlistSources(deps)) };
+async function withAssembly(deps: CaptureDeps, actor: Actor, operation: Operation): Promise<CaseFile> {
+  return {
+    operation,
+    assembly: evaluateCaseAssembly(operation, await watchlistSources(deps)),
+    canEdit: hasPermission(actor.offices, "operation:edit") && CASE_EDITABLE_STATES.includes(operation.state),
+  };
 }

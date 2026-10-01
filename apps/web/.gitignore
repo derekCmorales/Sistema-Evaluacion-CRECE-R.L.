@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# design system publicado por scripts/sync-design-system.mjs
+/public/ds/

@@ -48,12 +48,12 @@ export function parseChecklistItemUpdate(input: unknown): ChecklistItemUpdate {
 export function parseFinancialAssessment(input: unknown): FinancialAssessmentInput {
   const body = asRecord(input, "Cuerpo de evaluación financiera inválido");
   return {
-    monthlySales: requiredAmount(body.monthlySales, "Las ventas mensuales"),
-    monthlyIncome: requiredAmount(body.monthlyIncome, "Los ingresos mensuales"),
-    monthlyExpenses: requiredAmount(body.monthlyExpenses, "Los gastos mensuales"),
-    existingDebtPayment: requiredAmount(body.existingDebtPayment, "La cuota de deudas actuales"),
-    guaranteeValue: optionalAmount(body.guaranteeValue, "El valor de la garantía"),
-    projectedRoiPercent: optionalNumber(body.projectedRoiPercent, "El ROI proyectado"),
+    monthlySales: requiredAmount(body.monthlySales, "las ventas mensuales"),
+    monthlyIncome: requiredAmount(body.monthlyIncome, "los ingresos mensuales"),
+    monthlyExpenses: requiredAmount(body.monthlyExpenses, "los gastos mensuales"),
+    existingDebtPayment: requiredAmount(body.existingDebtPayment, "la cuota de deudas actuales"),
+    guaranteeValue: optionalAmount(body.guaranteeValue, "el valor de la garantía"),
+    projectedRoiPercent: optionalNumber(body.projectedRoiPercent, "el ROI proyectado"),
   };
 }
 
@@ -69,10 +69,10 @@ export function parseGuarantor(input: unknown): GuarantorUpdate {
   if (body.financialAssessment !== undefined && body.financialAssessment !== null) {
     const f = asRecord(body.financialAssessment, "Evaluación del fiador inválida");
     assessment = {
-      monthlyIncome: requiredAmount(f.monthlyIncome, "Los ingresos del fiador"),
-      monthlyExpenses: requiredAmount(f.monthlyExpenses, "Los gastos del fiador"),
-      existingDebtPayment: requiredAmount(f.existingDebtPayment, "La cuota de deudas del fiador"),
-      guaranteeValue: optionalAmount(f.guaranteeValue, "El valor de la garantía del fiador"),
+      monthlyIncome: requiredAmount(f.monthlyIncome, "los ingresos del fiador"),
+      monthlyExpenses: requiredAmount(f.monthlyExpenses, "los gastos del fiador"),
+      existingDebtPayment: requiredAmount(f.existingDebtPayment, "la cuota de deudas del fiador"),
+      guaranteeValue: optionalAmount(f.guaranteeValue, "el valor de la garantía del fiador"),
     };
   }
 
@@ -132,7 +132,7 @@ function isBlank(value: unknown): boolean {
 
 function requiredAmount(value: unknown, field: string): number {
   if (isBlank(value)) {
-    throw new ValidationError(`${field} es un dato obligatorio`);
+    throw new ValidationError(`Falta ${field}`);
   }
   return nonNegative(value, field);
 }
@@ -146,7 +146,7 @@ function optionalNumber(value: unknown, field: string): number | undefined {
   if (isBlank(value)) return undefined;
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) {
-    throw new ValidationError(`${field} debe ser un número`);
+    throw new ValidationError(`Revisa ${field}: debe ser un número`);
   }
   return n;
 }
@@ -154,7 +154,7 @@ function optionalNumber(value: unknown, field: string): number | undefined {
 function nonNegative(value: unknown, field: string): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n) || n < 0) {
-    throw new ValidationError(`${field} debe ser un número mayor o igual a 0`);
+    throw new ValidationError(`Revisa ${field}: debe ser un número mayor o igual a 0`);
   }
   return n;
 }

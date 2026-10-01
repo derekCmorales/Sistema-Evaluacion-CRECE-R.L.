@@ -395,12 +395,12 @@ export type CaseAssemblyGap =
   | "WATCHLIST_MATCH";
 
 export const CASE_ASSEMBLY_GAP_LABELS: Record<CaseAssemblyGap, string> = {
-  CHECKLIST_PENDING: "Hay requisitos obligatorios pendientes en el checklist",
-  ASSESSMENT_MISSING: "Falta la evaluación financiera del solicitante",
-  GUARANTOR_INCOMPLETE: "Faltan los datos o la evaluación financiera del fiador",
-  WATCHLIST_MISSING: "Falta consultar alguna lista de control",
-  WATCHLIST_PENDING_REVIEW: "Hay una consulta a listas de control en revisión manual",
-  WATCHLIST_MATCH: "Hay una coincidencia en listas de control: requiere análisis antes de continuar",
+  CHECKLIST_PENDING: "Requisitos obligatorios pendientes",
+  ASSESSMENT_MISSING: "Falta la evaluación financiera",
+  GUARANTOR_INCOMPLETE: "Faltan datos o evaluación del fiador",
+  WATCHLIST_MISSING: "Falta consultar listas de control",
+  WATCHLIST_PENDING_REVIEW: "Consulta en revisión manual",
+  WATCHLIST_MATCH: "Coincidencia en listas: analizar antes de seguir",
 };
 
 /** Fila del directorio de solicitantes. El DPI viaja enmascarado (minimización de PII). */
@@ -457,6 +457,13 @@ export const CAPTURE_AUDIT_ACTION_LABELS: Record<CaptureAuditAction, string> = {
 
 /** Autor de lo que entra por la landing: no hay usuario interno detrás. */
 export const LANDING_ACTOR_ID: UserId = toUserId("system:landing");
+
+/** Fila de la cola de expedientes, con su avance de armado. */
+export type CaseFileListItem = OperationListItem & {
+  personName: string;
+  readyForReview: boolean;
+  gapsCount: number;
+};
 
 export class NotFoundError extends DomainError {
   constructor(message: string) {
