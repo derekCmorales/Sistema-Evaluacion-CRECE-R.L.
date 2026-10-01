@@ -1,95 +1,48 @@
-import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put, Query } from "@nestjs/common";
 import {
-  assertPermission,
-  getPerson,
+  assignPersonDpi,
+  findPersonByDpi,
+  getPersonProfile,
   listPersons,
   registerPerson,
+  type CaptureDeps,
 } from "@crece/application";
-import { maskDpi, NotFoundError } from "@crece/shared";
-import { normalizeDpi } from "@crece/application";
-import { InMemoryPersonStore } from "./in-memory-person.store";
-import { InMemoryOperationStore } from "../operations/in-memory-operation.store";
-import { InMemoryAuditLog } from "../memory/in-memory-audit-log";
-import { intakeDeps } from "../memory/intake-deps";
-import { actorFromHeaders } from "../../common/actor";
+import type { Actor, PersonSource } from "@crece/shared";
+import { CurrentActor } from "../../common/current-actor";
+import { CAPTURE_DEPS } from "../capture/capture.tokens";
 
+/** Fase 1 — registro del solicitante. El DPI nunca viaja en la URL. */
 @Controller("persons")
 export class PersonsController {
-  constructor(
-    private readonly persons: InMemoryPersonStore,
-    private readonly operations: InMemoryOperationStore,
-    private readonly audit: InMemoryAuditLog,
-  ) {}
+  constructor(@Inject(CAPTURE_DEPS) private readonly deps: CaptureDeps) {}
 
   @Get()
-  list(@Headers() headers: Record<string, string | string[] | undefined>) {
-    return {
-      persistence: "in-memory",
-      items: listPersons(this.deps(), actorFromHeaders(headers)),
-    };
+  async list(@CurrentActor() actor: Actor, @Query("source") source?: string) {
+    const filter = source === "LANDING" || source === "ADVISOR" ? { source: source as PersonSource } : {};
+    return { items: await listPersons(this.deps, actor, filter) };
   }
 
-  /** El DPI viaja en el cuerpo, no en la URL. */
+  /** Búsqueda previa al registro para no duplicar identidades. */
   @Post("lookup")
-  lookup(
-    @Body() body: { dpi?: string },
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    const actor = actorFromHeaders(headers);
-    assertPermission(actor.offices, "person:read");
-    const dpi = normalizeDpi(body?.dpi);
-    const person = this.persons.getByDpi(dpi);
-    if (!person) {
-      throw new NotFoundError("No existe una persona con ese DPI");
-    }
-    return {
-      ...person,
-      operationsCount: this.operations.getByPersonId(person.id).length,
-    };
+  @HttpCode(200)
+  async lookup(@CurrentActor() actor: Actor, @Body() body: unknown) {
+    return { match: await findPersonByDpi(this.deps, actor, body) };
   }
 
   @Get(":id")
-  getOne(
-    @Param("id") id: string,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return getPerson(this.deps(), id, actorFromHeaders(headers));
-  }
-
-  @Get(":id/operations")
-  getPersonOperations(
-    @Param("id") id: string,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    const detail = getPerson(this.deps(), id, actorFromHeaders(headers));
-    return {
-      personId: detail.id,
-      fullName: detail.fullName,
-      dpi: detail.dpi ? maskDpi(detail.dpi) : "",
-      operations: detail.operations,
-      count: detail.operations.length,
-    };
+  profile(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return getPersonProfile(this.deps, actor, id);
   }
 
   @Post()
-  create(
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    const stored = registerPerson(this.deps(), body, actorFromHeaders(headers));
-    return {
-      personId: stored.id,
-      fullName: stored.fullName,
-      dpi: stored.dpi,
-      status: stored.status,
-      source: stored.source,
-      interest: stored.interest,
-      registeredByUserId: stored.registeredByUserId,
-      createdAt: stored.createdAt,
-    };
+  @HttpCode(201)
+  register(@CurrentActor() actor: Actor, @Body() body: unknown) {
+    return registerPerson(this.deps, actor, body);
   }
 
-  private deps() {
-    return intakeDeps(this.persons, this.operations, this.audit);
+  /** Completa el DPI de un prospecto que llegó por la landing. */
+  @Put(":id/dpi")
+  assignDpi(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return assignPersonDpi(this.deps, actor, id, body);
   }
 }

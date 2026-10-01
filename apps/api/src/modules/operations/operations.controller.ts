@@ -2,18 +2,19 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
-  NotFoundException,
+  HttpCode,
+  Inject,
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from "@nestjs/common";
 import {
   DEFAULT_RATES_CONFIG,
   ValidationError,
-  maskDpi,
   money,
+  type Actor,
   type GuaranteeType,
   type ProductType,
 } from "@crece/shared";
@@ -21,19 +22,21 @@ import {
   calculateCreditMetrics,
   createChecklistItems,
   evaluateHardRules,
-  type Operation,
 } from "@crece/domain";
-import { assertPermission, markAssembled, openDraftOperation } from "@crece/application";
-import { InMemoryOperationStore } from "./in-memory-operation.store";
-import { InMemoryPersonStore } from "../persons/in-memory-person.store";
-import { InMemoryAuditLog } from "../memory/in-memory-audit-log";
-import { intakeDeps } from "../memory/intake-deps";
-import { actorFromHeaders } from "../../common/actor";
-import { UpdateChecklistService } from "./services/update-checklist.service";
-import { FinancialAssessmentService } from "./services/financial-assessment.service";
-import { GuarantorService } from "./services/guarantor.service";
-import { WatchlistService } from "./services/watchlist.service";
-import { CaseAssemblyStatusService } from "./services/case-assembly-status.service";
+import {
+  getCaseFile,
+  getOperationHistory,
+  listCaseFiles,
+  markCaseAssembled,
+  openDraftOperation,
+  recordFinancialAssessment,
+  recordWatchlistCheck,
+  setGuarantor,
+  updateChecklistItem,
+  type CaptureDeps,
+} from "@crece/application";
+import { CurrentActor } from "../../common/current-actor";
+import { CAPTURE_DEPS } from "../capture/capture.tokens";
 
 const PRODUCTS: ProductType[] = [
   "WORKING_CAPITAL",
@@ -44,40 +47,20 @@ const GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 
 @Controller("operations")
 export class OperationsController {
-  constructor(
-    private readonly store: InMemoryOperationStore,
-    private readonly persons: InMemoryPersonStore,
-    private readonly audit: InMemoryAuditLog,
-    private readonly updateChecklistService: UpdateChecklistService,
-    private readonly financialAssessmentService: FinancialAssessmentService,
-    private readonly guarantorService: GuarantorService,
-    private readonly watchlistService: WatchlistService,
-    private readonly caseAssemblyStatusService: CaseAssemblyStatusService,
-  ) {}
+  constructor(@Inject(CAPTURE_DEPS) private readonly deps: CaptureDeps) {}
 
   @Get()
-  list(
-    @Query("personId") personId: string | undefined,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    assertPermission(actorFromHeaders(headers).offices, "operation:read");
-    const items = (personId ? this.store.getByPersonId(personId) : this.store.list()).map(
-      maskOperationDpi,
-    );
-    return {
-      persistence: "in-memory",
-      items,
-    };
+  async list(@CurrentActor() actor: Actor) {
+    return { items: await listCaseFiles(this.deps, actor) };
   }
 
+  /** Vista previa del checklist dinámico antes de abrir la solicitud. */
   @Get("checklist")
   checklist(
     @Query("productType") productType: string,
     @Query("guaranteeType") guaranteeType: string,
-    @Query("hasGuarantor") hasGuarantor: string | undefined,
-    @Headers() headers: Record<string, string | string[] | undefined>,
+    @Query("hasGuarantor") hasGuarantor?: string,
   ) {
-    assertPermission(actorFromHeaders(headers).offices, "operation:read");
     if (!PRODUCTS.includes(productType as ProductType)) {
       throw new ValidationError("productType inválido");
     }
@@ -90,120 +73,6 @@ export class OperationsController {
       hasGuarantor: hasGuarantor === "true",
     });
     return { items, count: items.length };
-  }
-
-  @Get(":id")
-  getOne(
-    @Param("id") id: string,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    assertPermission(actorFromHeaders(headers).offices, "operation:read");
-    const op = this.store.get(id);
-    if (!op) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
-    return op;
-  }
-
-  /**
-   * Fase 2: Apertura de solicitud en borrador (DRAFT)
-   */
-  @Post()
-  createDraft(
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    const stored = openDraftOperation(
-      intakeDeps(this.persons, this.store, this.audit),
-      body,
-      actorFromHeaders(headers),
-    );
-    return {
-      operationId: stored.id,
-      personId: stored.personId,
-      state: stored.state,
-      checklist: stored.checklist,
-      createdAt: stored.createdAt,
-    };
-  }
-
-  /**
-   * Fase 3: Actualización de casillas del checklist (carga o N/A justificado)
-   */
-  @Patch(":id/checklist")
-  updateChecklist(
-    @Param("id") id: string,
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.updateChecklistService.execute(id, asObject(body), actorFromHeaders(headers));
-  }
-
-  /**
-   * Fase 3: Captura manual de evaluación financiera + cálculo determinístico
-   */
-  @Post(":id/assessment")
-  updateAssessment(
-    @Param("id") id: string,
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.financialAssessmentService.execute(id, asObject(body), actorFromHeaders(headers));
-  }
-
-  /**
-   * Fase 3: Registro de fiador opcional
-   */
-  @Post(":id/guarantor")
-  updateGuarantor(
-    @Param("id") id: string,
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.guarantorService.execute(id, asObject(body), actorFromHeaders(headers));
-  }
-
-  /**
-   * Fase 3: Registro de consulta a listas de control (OFAC, ONU, Guatecompras)
-   */
-  @Post(":id/watchlist")
-  recordWatchlistCheck(
-    @Param("id") id: string,
-    @Body() body: unknown,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.watchlistService.execute(id, asObject(body), actorFromHeaders(headers));
-  }
-
-  /**
-   * Fase 3: Estado de completitud del expediente
-   */
-  @Get(":id/assembly-status")
-  getAssemblyStatus(
-    @Param("id") id: string,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    return this.caseAssemblyStatusService.evaluate(id, actorFromHeaders(headers));
-  }
-
-  /**
-   * Fase 3: Trazabilidad de quién armó el caso
-   */
-  @Post(":id/assemble")
-  setAssembledBy(
-    @Param("id") id: string,
-    @Headers() headers: Record<string, string | string[] | undefined>,
-  ) {
-    const updated = markAssembled(
-      intakeDeps(this.persons, this.store, this.audit),
-      id,
-      actorFromHeaders(headers),
-    );
-    return {
-      operationId: updated.id,
-      assembledByUserId: updated.assembledByUserId,
-      assembledAt: updated.assembledAt,
-    };
   }
 
   @Post("calc")
@@ -245,20 +114,52 @@ export class OperationsController {
     });
     return { calcResult, hardRuleHits };
   }
-}
 
-function maskOperationDpi(operation: Operation): Operation {
-  if (!operation.guarantor?.dpi) return operation;
-  return {
-    ...operation,
-    guarantor: { ...operation.guarantor, dpi: maskDpi(operation.guarantor.dpi) },
-  };
-}
+  /** Fase 2: apertura de la solicitud en borrador sobre una persona existente. */
+  @Post()
+  @HttpCode(201)
+  open(@CurrentActor() actor: Actor, @Body() body: unknown) {
+    return openDraftOperation(this.deps, actor, body);
+  }
 
-function asObject(body: unknown): Record<string, unknown> {
-  return typeof body === "object" && body !== null
-    ? (body as Record<string, unknown>)
-    : {};
+  /** Fase 3: expediente completo con su estado de armado. */
+  @Get(":id")
+  caseFile(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return getCaseFile(this.deps, actor, id);
+  }
+
+  @Get(":id/history")
+  async history(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return { items: await getOperationHistory(this.deps, actor, id) };
+  }
+
+  @Patch(":id/checklist")
+  updateChecklist(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return updateChecklistItem(this.deps, actor, id, body);
+  }
+
+  @Put(":id/assessment")
+  assessment(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return recordFinancialAssessment(this.deps, actor, id, body);
+  }
+
+  @Put(":id/guarantor")
+  guarantor(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return setGuarantor(this.deps, actor, id, body);
+  }
+
+  @Post(":id/watchlist")
+  @HttpCode(201)
+  watchlist(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return recordWatchlistCheck(this.deps, actor, id, body);
+  }
+
+  /** Constancia de quién armó el expediente. */
+  @Post(":id/assemble")
+  @HttpCode(200)
+  assemble(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return markCaseAssembled(this.deps, actor, id);
+  }
 }
 
 type CalcBody = {

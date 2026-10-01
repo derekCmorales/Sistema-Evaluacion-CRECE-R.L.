@@ -196,16 +196,6 @@ export const DEFAULT_SEMAPHORE_CONFIG = {
   waitingReminderDays: 5,
 };
 
-/**
- * Semilla de listas de control exigidas al armar el expediente.
- * En producción se lee de configuración (DB), no se duplica en la UI.
- */
-export const DEFAULT_REQUIRED_WATCHLIST_SOURCES: WatchlistSource[] = [
-  "OFAC",
-  "ONU",
-  "GUATECOMPRAS",
-];
-
 export const DEFAULT_RATES_CONFIG = {
   creditAnnualRatePercent: 18,
   fixedTermRates: { minMonths: 6, maxMonths: 36, annualRatePercent: 8 },
@@ -355,75 +345,79 @@ export class ValidationError extends DomainError {
   }
 }
 
-export class NotFoundError extends DomainError {
-  constructor(message: string) {
-    super(message, "NOT_FOUND");
-  }
-}
-
-/* =========================================================================
- * CONTRATOS INICIALES: FASE 1, FASE 2 Y FASE 3 (Desarrollo Simultáneo)
- * ========================================================================= */
+/* -------------------------------------------------------------------------
+ * Captación: fases 1–3 (registro, apertura en borrador, armado del expediente)
+ * ------------------------------------------------------------------------- */
 
 export const API_PERSONS_PATH = "/persons" as const;
 export const API_OPERATIONS_PATH = "/operations" as const;
 
-// -------------------------------------------------------------------------
-// FASE 1: REGISTRO DEL SOLICITANTE
-// -------------------------------------------------------------------------
-
-export type CreatePersonInput = {
-  fullName: string;
-  dpi: string;
-  phone: string;
-  email?: string;
-  interest: ProspectInterest;
-  source: PersonSource;
-  registeredByUserId?: UserId;
-  /** Prospecto de la landing que se completa en lugar de crear otra persona. */
-  existingPersonId?: PersonId;
+/** Identidad del usuario que actúa. Llega del `AuthGateway`; hoy, de la sesión de desarrollo. */
+export type Actor = {
+  userId: UserId;
+  offices: Office[];
 };
 
-export type PersonSummaryDto = {
+export const PERSON_SOURCE_LABELS: Record<PersonSource, string> = {
+  LANDING: "Landing",
+  ADVISOR: "Agencia",
+};
+
+export const WATCHLIST_SOURCE_LABELS: Record<WatchlistSource, string> = {
+  OFAC: "OFAC",
+  ONU: "ONU",
+  GUATECOMPRAS: "Guatecompras",
+};
+
+export const WATCHLIST_RESULT_LABELS: Record<WatchlistResult, string> = {
+  CLEAR: "Sin coincidencias",
+  MATCH_FOUND: "Coincidencia encontrada",
+  PENDING_MANUAL_REVIEW: "En revisión manual",
+};
+
+/**
+ * Semilla de configuración — el valor vivo vive en `caseAssembly.watchlistSources` (DB).
+ * Listas de control que todo expediente consulta antes de pasar a revisión.
+ */
+export const WATCHLIST_SOURCES_SEED: WatchlistSource[] = ["OFAC", "ONU", "GUATECOMPRAS"];
+
+export const CASE_ASSEMBLY_CONFIG_KEYS = {
+  watchlistSources: "caseAssembly.watchlistSources",
+} as const;
+
+/** Qué le falta a un expediente para quedar armado. */
+export type CaseAssemblyGap =
+  | "CHECKLIST_PENDING"
+  | "ASSESSMENT_MISSING"
+  | "GUARANTOR_INCOMPLETE"
+  | "WATCHLIST_MISSING"
+  | "WATCHLIST_PENDING_REVIEW"
+  | "WATCHLIST_MATCH";
+
+export const CASE_ASSEMBLY_GAP_LABELS: Record<CaseAssemblyGap, string> = {
+  CHECKLIST_PENDING: "Hay requisitos obligatorios pendientes en el checklist",
+  ASSESSMENT_MISSING: "Falta la evaluación financiera del solicitante",
+  GUARANTOR_INCOMPLETE: "Faltan los datos o la evaluación financiera del fiador",
+  WATCHLIST_MISSING: "Falta consultar alguna lista de control",
+  WATCHLIST_PENDING_REVIEW: "Hay una consulta a listas de control en revisión manual",
+  WATCHLIST_MATCH: "Hay una coincidencia en listas de control: requiere análisis antes de continuar",
+};
+
+/** Fila del directorio de solicitantes. El DPI viaja enmascarado (minimización de PII). */
+export type PersonListItem = {
   id: PersonId;
   fullName: string;
-  dpi: string;
+  dpiMasked?: string;
   phone: string;
-  email?: string;
   status: PersonStatus;
-  source: PersonSource;
+  source?: PersonSource;
   interest?: ProspectInterest;
-  registeredByUserId?: UserId;
   createdAt: string;
   operationsCount: number;
 };
 
-// -------------------------------------------------------------------------
-// FASE 2: APERTURA DE SOLICITUD
-// -------------------------------------------------------------------------
-
-export type CreateDraftOperationInput = {
-  personId: PersonId;
-  productType: ProductType;
-  guaranteeType: GuaranteeType;
-  requestedAmount: Money;
-  termMonths: number;
-  purpose: string;
-  hasGuarantor: boolean;
-  createdBy: UserId;
-};
-
-export type ChecklistItemSummaryDto = {
-  code: string;
-  label: string;
-  required: boolean;
-  status: ChecklistItemStatus;
-  notApplicableReason?: string;
-  documentId?: string;
-  critical?: boolean;
-};
-
-export type DraftOperationSummaryDto = {
+/** Fila del historial de solicitudes de una persona. */
+export type OperationListItem = {
   id: OperationId;
   personId: PersonId;
   productType: ProductType;
@@ -431,82 +425,57 @@ export type DraftOperationSummaryDto = {
   requestedAmount: Money;
   termMonths: number;
   purpose: string;
+  state: OperationState;
   hasGuarantor: boolean;
-  state: "DRAFT";
-  checklist: ChecklistItemSummaryDto[];
-  createdBy: UserId;
   createdAt: string;
+  updatedAt: string;
 };
 
-// -------------------------------------------------------------------------
-// FASE 3: ARMADO DEL EXPEDIENTE
-// -------------------------------------------------------------------------
+/** Acciones de captación que quedan en la bitácora (append-only). */
+export type CaptureAuditAction =
+  | "PROSPECT_CREATED"
+  | "PERSON_REGISTERED"
+  | "PERSON_DPI_ASSIGNED"
+  | "OPERATION_OPENED"
+  | "CHECKLIST_ITEM_UPDATED"
+  | "ASSESSMENT_RECORDED"
+  | "GUARANTOR_SET"
+  | "WATCHLIST_CHECKED"
+  | "CASE_ASSEMBLED";
 
-export type UpdateChecklistItemInput = {
-  operationId: OperationId;
-  code: string;
-  status: ChecklistItemStatus;
-  notApplicableReason?: string;
-  documentId?: DocumentId;
+export const CAPTURE_AUDIT_ACTION_LABELS: Record<CaptureAuditAction, string> = {
+  PROSPECT_CREATED: "Prospecto recibido desde la landing",
+  PERSON_REGISTERED: "Solicitante registrado en agencia",
+  PERSON_DPI_ASSIGNED: "DPI completado",
+  OPERATION_OPENED: "Solicitud abierta en borrador",
+  CHECKLIST_ITEM_UPDATED: "Requisito actualizado",
+  ASSESSMENT_RECORDED: "Evaluación financiera capturada",
+  GUARANTOR_SET: "Fiador registrado",
+  WATCHLIST_CHECKED: "Consulta a lista de control",
+  CASE_ASSEMBLED: "Expediente marcado como armado",
 };
 
-export type UpdateFinancialAssessmentInput = {
-  operationId: OperationId;
-  monthlySales: number;
-  monthlyIncome: number;
-  monthlyExpenses: number;
-  existingDebtPayment: number;
-  guaranteeValue?: number;
-  projectedRoiPercent?: number;
-};
+/** Autor de lo que entra por la landing: no hay usuario interno detrás. */
+export const LANDING_ACTOR_ID: UserId = toUserId("system:landing");
 
-export type UpdateGuarantorInput = {
-  operationId: OperationId;
-  fullName: string;
-  dpi?: string;
-  phone?: string;
-  relationship?: string;
-  financialAssessment?: {
-    monthlyIncome: number;
-    monthlyExpenses: number;
-    existingDebtPayment: number;
-    guaranteeValue?: number;
-  };
-  bureauDocumentId?: DocumentId;
-  notes?: string;
-};
+export class NotFoundError extends DomainError {
+  constructor(message: string) {
+    super(message, "NOT_FOUND");
+  }
+}
 
-export type RecordWatchlistCheckInput = {
-  operationId: OperationId;
-  source: WatchlistSource;
-  queryRef: string;
-  result: WatchlistResult;
-  notes?: string;
-  checkedByUserId: UserId;
-};
+export class UnauthenticatedError extends DomainError {
+  constructor(message = "Inicia sesión para continuar") {
+    super(message, "UNAUTHENTICATED");
+  }
+}
 
-export type WatchlistCheckSummaryDto = {
-  id: string;
-  operationId: OperationId;
-  source: WatchlistSource;
-  queryRef: string;
-  result: WatchlistResult;
-  checkedByUserId: UserId;
-  checkedAt: string;
-  notes?: string;
-};
-
-export type CaseAssemblyStatusDto = {
-  operationId: OperationId;
-  assembledByUserId?: UserId;
-  assembledAt?: string;
-  checklistComplete: boolean;
-  pendingChecklistCount: number;
-  hasFinancialAssessment: boolean;
-  watchlistChecksCompleted: boolean;
-  watchlistGaps: {
-    source: WatchlistSource;
-    reason: "MISSING" | "MATCH_FOUND" | "PENDING_MANUAL_REVIEW";
-  }[];
-  readyForReview: boolean;
-};
+/** El DPI ya pertenece a otra persona: se reutiliza su perfil, no se duplica. */
+export class DuplicatePersonError extends DomainError {
+  constructor(readonly existingPersonId: PersonId) {
+    super(
+      "Ya existe una persona con ese DPI. Abre la solicitud desde su perfil en lugar de registrarla de nuevo.",
+      "DUPLICATE_PERSON",
+    );
+  }
+}

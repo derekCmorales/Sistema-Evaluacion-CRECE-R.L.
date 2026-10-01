@@ -1,17 +1,21 @@
 import {
   ValidationError,
-  toDocumentId,
-  toOperationId,
-  toUserId,
   type ChecklistItemStatus,
-  type RecordWatchlistCheckInput,
-  type UpdateChecklistItemInput,
-  type UpdateFinancialAssessmentInput,
-  type UpdateGuarantorInput,
   type WatchlistResult,
   type WatchlistSource,
 } from "@crece/shared";
-import { normalizeDpi } from "./person-contracts";
+import type {
+  ChecklistItemUpdate,
+  FinancialAssessmentInput,
+  GuarantorAssessmentInput,
+  GuarantorUpdate,
+} from "@crece/domain";
+
+/**
+ * Contratos de entrada del armado del expediente (fase 3). La operación sale de la ruta
+ * y el usuario de la sesión: el cuerpo solo trae lo que el asesor capturó.
+ * Las reglas (código existente, motivo de «No aplica», DPI del fiador) viven en dominio.
+ */
 
 const VALID_CHECKLIST_STATUSES: ChecklistItemStatus[] = [
   "PENDING",
@@ -20,253 +24,137 @@ const VALID_CHECKLIST_STATUSES: ChecklistItemStatus[] = [
   "NOT_APPLICABLE",
   "MISSING_VISIBLE",
 ];
+const VALID_WATCHLIST_SOURCES: WatchlistSource[] = ["OFAC", "ONU", "GUATECOMPRAS"];
+const VALID_WATCHLIST_RESULTS: WatchlistResult[] = ["CLEAR", "MATCH_FOUND", "PENDING_MANUAL_REVIEW"];
 
-const VALID_WATCHLIST_SOURCES: WatchlistSource[] = [
-  "OFAC",
-  "ONU",
-  "GUATECOMPRAS",
-];
-
-const VALID_WATCHLIST_RESULTS: WatchlistResult[] = [
-  "CLEAR",
-  "MATCH_FOUND",
-  "PENDING_MANUAL_REVIEW",
-];
-
-/**
- * Contrato para actualizar un ítem del checklist de expediente (Fase 3).
- * Regla dura de instrucciones.txt: marcar 'no aplica' SIEMPRE exige justificación.
- */
-export function parseUpdateChecklistItem(input: unknown): UpdateChecklistItemInput {
-  if (typeof input !== "object" || input === null) {
-    throw new ValidationError("Cuerpo de actualización de requisito inválido");
-  }
-
-  const body = input as Record<string, unknown>;
-  const operationId = String(body.operationId ?? "").trim();
+export function parseChecklistItemUpdate(input: unknown): ChecklistItemUpdate {
+  const body = asRecord(input, "Cuerpo de actualización de requisito inválido");
   const code = String(body.code ?? "").trim();
   const status = body.status as ChecklistItemStatus;
-  const notApplicableReason =
-    typeof body.notApplicableReason === "string" ? body.notApplicableReason.trim() : "";
-  const documentId =
-    typeof body.documentId === "string" && body.documentId.trim().length > 0
-      ? toDocumentId(body.documentId.trim())
-      : undefined;
-
-  if (operationId.length === 0) {
-    throw new ValidationError("El identificador de la operación es obligatorio");
-  }
-
   if (code.length === 0) {
-    throw new ValidationError("El código del requisito en el checklist es obligatorio");
+    throw new ValidationError("Indica el código del requisito");
   }
-
   if (!VALID_CHECKLIST_STATUSES.includes(status)) {
-    throw new ValidationError("Estado de requisito de checklist no reconocido");
+    throw new ValidationError("Estado de requisito no reconocido");
   }
-
-  if (status === "NOT_APPLICABLE") {
-    if (notApplicableReason.length < 5) {
-      throw new ValidationError(
-        "Para marcar un requisito como 'No aplica', es obligatorio registrar una justificación clara (mínimo 5 caracteres)",
-      );
-    }
-  }
-
   return {
-    operationId: toOperationId(operationId),
     code,
     status,
-    notApplicableReason: status === "NOT_APPLICABLE" ? notApplicableReason : undefined,
-    documentId,
+    notApplicableReason: optionalText(body.notApplicableReason),
+    documentId: optionalText(body.documentId),
   };
 }
 
-/**
- * Contrato para la captura manual de evaluación financiera (Fase 3).
- * Captura: ventas mensuales, ingresos mensuales, gastos y cuota de deudas existentes.
- */
-export function parseFinancialAssessmentInput(input: unknown): UpdateFinancialAssessmentInput {
-  if (typeof input !== "object" || input === null) {
-    throw new ValidationError("Cuerpo de evaluación financiera inválido");
-  }
-
-  const body = input as Record<string, unknown>;
-  const operationId = String(body.operationId ?? "").trim();
-
-  if (operationId.length === 0) {
-    throw new ValidationError("El identificador de la operación es obligatorio");
-  }
-
-  const monthlySales = readNonNegativeAmount(body.monthlySales, "Las ventas mensuales", true);
-  const monthlyIncome = readNonNegativeAmount(body.monthlyIncome, "Los ingresos mensuales", true);
-  const monthlyExpenses = readNonNegativeAmount(body.monthlyExpenses, "Los gastos mensuales", true);
-  const existingDebtPayment = readNonNegativeAmount(
-    body.existingDebtPayment,
-    "El pago de deudas existentes",
-    true,
-  );
-  const guaranteeValue = readNonNegativeAmount(body.guaranteeValue, "El valor de la garantía", false);
-  const projectedRoiPercent = readNonNegativeAmount(
-    body.projectedRoiPercent,
-    "El retorno proyectado",
-    false,
-  );
-
+export function parseFinancialAssessment(input: unknown): FinancialAssessmentInput {
+  const body = asRecord(input, "Cuerpo de evaluación financiera inválido");
   return {
-    operationId: toOperationId(operationId),
-    monthlySales: monthlySales!,
-    monthlyIncome: monthlyIncome!,
-    monthlyExpenses: monthlyExpenses!,
-    existingDebtPayment: existingDebtPayment!,
-    guaranteeValue,
-    projectedRoiPercent,
+    monthlySales: requiredAmount(body.monthlySales, "Las ventas mensuales"),
+    monthlyIncome: requiredAmount(body.monthlyIncome, "Los ingresos mensuales"),
+    monthlyExpenses: requiredAmount(body.monthlyExpenses, "Los gastos mensuales"),
+    existingDebtPayment: requiredAmount(body.existingDebtPayment, "La cuota de deudas actuales"),
+    guaranteeValue: optionalAmount(body.guaranteeValue, "El valor de la garantía"),
+    projectedRoiPercent: optionalNumber(body.projectedRoiPercent, "El ROI proyectado"),
   };
 }
 
-/**
- * Un dato presente que no es numérico es un error. No se descarta en silencio.
- * `required` obliga a que el campo venga informado.
- */
-export function readNonNegativeAmount(
-  value: unknown,
-  label: string,
-  required: boolean,
-): number | undefined {
-  if (value === undefined || value === null || value === "") {
-    if (required) {
-      throw new ValidationError(`${label} es obligatorio y debe ser un número`);
-    }
-    return undefined;
-  }
-  if (typeof value === "boolean") {
-    throw new ValidationError(`${label} debe ser un número`);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new ValidationError(`${label} debe ser un número`);
-    }
-    if (value < 0) {
-      throw new ValidationError(`${label} debe ser un número mayor o igual a 0`);
-    }
-    return value;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!/^\d+(\.\d+)?$/.test(trimmed)) {
-      throw new ValidationError(`${label} debe ser un número. «${trimmed}» no es numérico`);
-    }
-    return Number(trimmed);
-  }
-  throw new ValidationError(`${label} debe ser un número`);
-}
-
-/**
- * Contrato para el fiador opcional y su evaluación (Fase 3).
- * Es intencionalmente flexible y tolerante a información parcial según instrucciones.txt.
- */
-export function parseGuarantorInput(input: unknown): UpdateGuarantorInput {
-  if (typeof input !== "object" || input === null) {
-    throw new ValidationError("Cuerpo de datos del fiador inválido");
-  }
-
-  const body = input as Record<string, unknown>;
-  const operationId = String(body.operationId ?? "").trim();
+/** El fiador es flexible: basta el nombre; lo demás se completa cuando llegue. */
+export function parseGuarantor(input: unknown): GuarantorUpdate {
+  const body = asRecord(input, "Cuerpo de datos del fiador inválido");
   const fullName = String(body.fullName ?? "").trim();
-
-  if (operationId.length === 0) {
-    throw new ValidationError("El identificador de la operación es obligatorio");
-  }
-
   if (fullName.length < 3) {
-    throw new ValidationError("El nombre del fiador debe tener al menos 3 caracteres");
+    throw new ValidationError("Escribe el nombre del fiador (al menos 3 caracteres)");
   }
 
-  const dpi =
-    typeof body.dpi === "string" && body.dpi.trim().length > 0
-      ? normalizeDpi(body.dpi)
-      : undefined;
-  const phone = typeof body.phone === "string" && body.phone.trim().length > 0 ? body.phone.trim() : undefined;
-  const relationship = typeof body.relationship === "string" ? body.relationship.trim() : undefined;
-  const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
-  const bureauDocumentId =
-    typeof body.bureauDocumentId === "string" && body.bureauDocumentId.trim().length > 0
-      ? toDocumentId(body.bureauDocumentId.trim())
-      : undefined;
-
-  let financialAssessment: UpdateGuarantorInput["financialAssessment"] = undefined;
-  if (typeof body.financialAssessment === "object" && body.financialAssessment !== null) {
-    const f = body.financialAssessment as Record<string, unknown>;
-    financialAssessment = {
-      monthlyIncome: readNonNegativeAmount(f.monthlyIncome, "Los ingresos del fiador", true)!,
-      monthlyExpenses: readNonNegativeAmount(f.monthlyExpenses, "Los gastos del fiador", true)!,
-      existingDebtPayment: readNonNegativeAmount(
-        f.existingDebtPayment,
-        "Las deudas del fiador",
-        true,
-      )!,
-      guaranteeValue: readNonNegativeAmount(
-        f.guaranteeValue,
-        "La garantía del fiador",
-        false,
-      ),
+  let assessment: GuarantorAssessmentInput | undefined;
+  if (body.financialAssessment !== undefined && body.financialAssessment !== null) {
+    const f = asRecord(body.financialAssessment, "Evaluación del fiador inválida");
+    assessment = {
+      monthlyIncome: requiredAmount(f.monthlyIncome, "Los ingresos del fiador"),
+      monthlyExpenses: requiredAmount(f.monthlyExpenses, "Los gastos del fiador"),
+      existingDebtPayment: requiredAmount(f.existingDebtPayment, "La cuota de deudas del fiador"),
+      guaranteeValue: optionalAmount(f.guaranteeValue, "El valor de la garantía del fiador"),
     };
   }
 
   return {
-    operationId: toOperationId(operationId),
-    fullName,
-    dpi,
-    phone,
-    relationship: relationship || undefined,
-    financialAssessment,
-    bureauDocumentId,
-    notes: notes || undefined,
+    guarantor: {
+      fullName,
+      dpi: optionalText(body.dpi),
+      phone: optionalText(body.phone),
+      relationship: optionalText(body.relationship),
+    },
+    assessment,
   };
 }
 
-/**
- * Contrato para registrar consultas a listas de control (Fase 3: OFAC, ONU, Guatecompras).
- */
-export function parseWatchlistCheckInput(input: unknown): RecordWatchlistCheckInput {
-  if (typeof input !== "object" || input === null) {
-    throw new ValidationError("Cuerpo de consulta a listas de control inválido");
-  }
+export type WatchlistCheckInput = {
+  source: WatchlistSource;
+  queryRef: string;
+  result: WatchlistResult;
+  notes?: string;
+};
 
-  const body = input as Record<string, unknown>;
-  const operationId = String(body.operationId ?? "").trim();
+export function parseWatchlistCheck(input: unknown): WatchlistCheckInput {
+  const body = asRecord(input, "Cuerpo de consulta a listas de control inválido");
   const source = body.source as WatchlistSource;
-  const queryRef = String(body.queryRef ?? "").trim();
   const result = body.result as WatchlistResult;
-  const checkedByUserId = String(body.checkedByUserId ?? "").trim();
-  const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
-
-  if (operationId.length === 0) {
-    throw new ValidationError("El identificador de la operación es obligatorio");
-  }
-
+  const queryRef = String(body.queryRef ?? "").trim();
   if (!VALID_WATCHLIST_SOURCES.includes(source)) {
-    throw new ValidationError("Fuente de lista de control inválida (debe ser OFAC, ONU o GUATECOMPRAS)");
+    throw new ValidationError("La lista debe ser OFAC, ONU o Guatecompras");
   }
-
   if (queryRef.length === 0) {
-    throw new ValidationError("La referencia de consulta (DPI o nombre) es obligatoria");
+    throw new ValidationError("Indica qué se consultó (DPI o nombre)");
   }
-
   if (!VALID_WATCHLIST_RESULTS.includes(result)) {
-    throw new ValidationError("Resultado de verificación en lista inválido");
+    throw new ValidationError("Resultado de consulta no reconocido");
   }
-
-  if (checkedByUserId.length === 0) {
-    throw new ValidationError("El usuario que realiza la consulta es obligatorio");
+  const notes = optionalText(body.notes);
+  if (result === "MATCH_FOUND" && !notes) {
+    throw new ValidationError("Una coincidencia debe llevar nota: qué registro coincidió y con qué datos");
   }
+  return { source, queryRef, result, notes };
+}
 
-  return {
-    operationId: toOperationId(operationId),
-    source,
-    queryRef,
-    result,
-    notes: notes || undefined,
-    checkedByUserId: toUserId(checkedByUserId),
-  };
+function asRecord(input: unknown, message: string): Record<string, unknown> {
+  if (typeof input !== "object" || input === null) {
+    throw new ValidationError(message);
+  }
+  return input as Record<string, unknown>;
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function isBlank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === "string" && value.trim() === "");
+}
+
+function requiredAmount(value: unknown, field: string): number {
+  if (isBlank(value)) {
+    throw new ValidationError(`${field} es un dato obligatorio`);
+  }
+  return nonNegative(value, field);
+}
+
+/** Un dato opcional puede venir vacío; si viene, tiene que ser un número válido (no se descarta en silencio). */
+function optionalAmount(value: unknown, field: string): number | undefined {
+  return isBlank(value) ? undefined : nonNegative(value, field);
+}
+
+function optionalNumber(value: unknown, field: string): number | undefined {
+  if (isBlank(value)) return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) {
+    throw new ValidationError(`${field} debe ser un número`);
+  }
+  return n;
+}
+
+function nonNegative(value: unknown, field: string): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    throw new ValidationError(`${field} debe ser un número mayor o igual a 0`);
+  }
+  return n;
 }

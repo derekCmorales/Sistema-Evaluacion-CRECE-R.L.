@@ -1,4 +1,4 @@
-import { ForbiddenError, type Office } from "@crece/shared";
+import type { Office } from "@crece/shared";
 
 /**
  * Matriz deny-by-default. Consultar ≠ operar.
@@ -66,12 +66,6 @@ export function hasPermission(userOffices: Office[], permission: string): boolea
   const allowed = PERMISSIONS[permission];
   if (!allowed) return false;
   return userOffices.some((office) => allowed.includes(office));
-}
-
-export function assertPermission(userOffices: Office[], permission: string): void {
-  if (!hasPermission(userOffices, permission)) {
-    throw new ForbiddenError("No tiene permiso para esta acción con su cargo actual");
-  }
 }
 
 export function getPermissionsForOffices(offices: Office[]): string[] {

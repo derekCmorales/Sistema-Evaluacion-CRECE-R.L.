@@ -1,115 +1,49 @@
-import {
-  ValidationError,
-  toPersonId,
-  toUserId,
-  type CreatePersonInput,
-  type PersonSource,
-  type ProspectInterest,
-} from "@crece/shared";
-import { personBirthStatus, type Person } from "@crece/domain";
+import { ValidationError, type ProspectInterest } from "@crece/shared";
+import { normalizeDpi } from "@crece/domain";
 
 const VALID_INTERESTS: ProspectInterest[] = ["CREDIT", "SAVINGS", "FIXED_TERM"];
-const VALID_SOURCES: PersonSource[] = ["LANDING", "ADVISOR"];
 
-/**
- * Normaliza y valida un DPI guatemalteco (13 dígitos numéricos).
- * Remueve espacios y guiones comunes (ej: "2345 67890 0101" -> "2345678900101").
- */
-export function normalizeDpi(rawDpi: unknown): string {
-  if (typeof rawDpi !== "string") {
-    throw new ValidationError("El DPI debe ser una cadena de texto");
-  }
-  const clean = rawDpi.replace(/[\s-]/g, "");
-  if (!/^\d{13}$/.test(clean)) {
-    throw new ValidationError("El DPI debe contener exactamente 13 dígitos numéricos");
-  }
-  return clean;
-}
+/** Registro en agencia (fase 1). El origen y quién registra salen del canal y de la sesión, no del cuerpo. */
+export type RegisterPersonInput = {
+  fullName: string;
+  dpi: string;
+  phone: string;
+  email?: string;
+  interest: ProspectInterest;
+};
 
-/**
- * Contrato de registro del solicitante (Fase 1).
- * Valida unicidad de perfil, datos de contacto, origen y auditoría de quién registró.
- */
-export function parseCreatePerson(input: unknown): CreatePersonInput {
-  if (typeof input !== "object" || input === null) {
-    throw new ValidationError("Cuerpo de registro de persona inválido");
-  }
-
-  const body = input as Record<string, unknown>;
+export function parseRegisterPerson(input: unknown): RegisterPersonInput {
+  const body = asRecord(input, "Cuerpo de registro de persona inválido");
   const fullName = String(body.fullName ?? "").trim();
   const phone = String(body.phone ?? "").trim();
   const interest = body.interest as ProspectInterest;
-  const source = body.source as PersonSource;
 
   if (fullName.length < 3) {
-    throw new ValidationError("El nombre completo es obligatorio y debe tener al menos 3 caracteres");
+    throw new ValidationError("Escribe el nombre completo (al menos 3 caracteres)");
   }
-
   const dpi = normalizeDpi(body.dpi);
-
-  if (phone.length < 8) {
-    throw new ValidationError("El número de teléfono debe tener al menos 8 dígitos");
+  if (phone.replace(/\D/g, "").length < 8) {
+    throw new ValidationError("El teléfono debe tener al menos 8 dígitos");
   }
-
   if (!VALID_INTERESTS.includes(interest)) {
-    throw new ValidationError("El producto de interés debe ser CREDIT, SAVINGS o FIXED_TERM");
+    throw new ValidationError("El producto de interés debe ser crédito, ahorro o plazo fijo");
+  }
+  const email = typeof body.email === "string" && body.email.trim().length > 0 ? body.email.trim() : undefined;
+  if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ValidationError("Revisa el correo: debe tener la forma nombre@dominio.com");
   }
 
-  if (!VALID_SOURCES.includes(source)) {
-    throw new ValidationError("El origen debe ser LANDING o ADVISOR");
-  }
-
-  const email =
-    typeof body.email === "string" && body.email.trim().length > 0
-      ? body.email.trim()
-      : undefined;
-
-  let registeredByUserId =
-    typeof body.registeredByUserId === "string" && body.registeredByUserId.trim().length > 0
-      ? toUserId(body.registeredByUserId.trim())
-      : undefined;
-
-  if (source === "ADVISOR" && !registeredByUserId) {
-    throw new ValidationError("Se debe registrar el usuario responsable (asesor/jefatura) que capturó al solicitante");
-  }
-
-  const existingPersonId =
-    typeof body.existingPersonId === "string" && body.existingPersonId.trim().length > 0
-      ? toPersonId(body.existingPersonId.trim())
-      : undefined;
-
-  return {
-    fullName,
-    dpi,
-    phone,
-    email,
-    interest,
-    source,
-    registeredByUserId,
-    existingPersonId,
-  };
+  return { fullName, dpi, phone, email, interest };
 }
 
-/**
- * Transforma el DTO validado en la entidad central Person de Dominio.
- */
-export function toPersonEntity(
-  input: CreatePersonInput,
-  id: string,
-  now = new Date().toISOString(),
-): Person {
-  return {
-    id: toPersonId(id),
-    fullName: input.fullName,
-    dpi: input.dpi,
-    contacts: {
-      phone: input.phone,
-      email: input.email,
-    },
-    status: personBirthStatus(),
-    source: input.source,
-    interest: input.interest,
-    registeredByUserId: input.registeredByUserId,
-    createdAt: now,
-  };
+/** Búsqueda o asignación de DPI: el DPI viaja en el cuerpo, nunca en la URL. */
+export function parseDpiBody(input: unknown): string {
+  return normalizeDpi(asRecord(input, "Cuerpo inválido").dpi);
+}
+
+function asRecord(input: unknown, message: string): Record<string, unknown> {
+  if (typeof input !== "object" || input === null) {
+    throw new ValidationError(message);
+  }
+  return input as Record<string, unknown>;
 }

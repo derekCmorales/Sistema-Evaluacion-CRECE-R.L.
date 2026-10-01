@@ -1,176 +1,84 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@crece/shared";
 import {
-  parseFinancialAssessmentInput,
-  parseGuarantorInput,
-  parseUpdateChecklistItem,
-  parseWatchlistCheckInput,
+  parseChecklistItemUpdate,
+  parseFinancialAssessment,
+  parseGuarantor,
+  parseWatchlistCheck,
 } from "./case-assembly-contracts";
 
 describe("case-assembly-contracts", () => {
-  describe("parseUpdateChecklistItem", () => {
-    it("permite cargar documento con estado UPLOADED", () => {
-      const parsed = parseUpdateChecklistItem({
-        operationId: "op-101",
+  describe("checklist", () => {
+    it("acepta un cambio de estado de casilla", () => {
+      expect(parseChecklistItemUpdate({ code: "DPI", status: "UPLOADED" })).toMatchObject({
         code: "DPI",
         status: "UPLOADED",
-        documentId: "doc-555",
       });
-
-      expect(parsed.operationId).toBe("op-101");
-      expect(parsed.code).toBe("DPI");
-      expect(parsed.status).toBe("UPLOADED");
-      expect(parsed.documentId).toBe("doc-555");
     });
 
-    it("EXIGE justificación si se marca como NOT_APPLICABLE (Regla de instrucciones.txt)", () => {
-      expect(() =>
-        parseUpdateChecklistItem({
-          operationId: "op-101",
-          code: "TAX_DECLARATION",
-          status: "NOT_APPLICABLE",
-        }),
-      ).toThrow(ValidationError);
-
-      expect(() =>
-        parseUpdateChecklistItem({
-          operationId: "op-101",
-          code: "TAX_DECLARATION",
-          status: "NOT_APPLICABLE",
-          notApplicableReason: "na", // Demasiado corto
-        }),
-      ).toThrow(ValidationError);
-
-      const validNA = parseUpdateChecklistItem({
-        operationId: "op-101",
-        code: "TAX_DECLARATION",
-        status: "NOT_APPLICABLE",
-        notApplicableReason: "El solicitante tributa en régimen de pequeño contribuyente exento de balance general",
-      });
-
-      expect(validNA.status).toBe("NOT_APPLICABLE");
-      expect(validNA.notApplicableReason).toContain("pequeño contribuyente");
+    it("rechaza un estado desconocido o un código vacío", () => {
+      expect(() => parseChecklistItemUpdate({ code: "DPI", status: "LISTO" })).toThrow(ValidationError);
+      expect(() => parseChecklistItemUpdate({ code: " ", status: "UPLOADED" })).toThrow(ValidationError);
     });
   });
 
-  describe("parseFinancialAssessmentInput", () => {
-    it("valida la captura manual de finanzas", () => {
-      const parsed = parseFinancialAssessmentInput({
-        operationId: "op-101",
-        monthlySales: 45000,
-        monthlyIncome: 15000,
-        monthlyExpenses: 8000,
-        existingDebtPayment: 1200,
+  describe("evaluación financiera", () => {
+    const valid = { monthlySales: 30000, monthlyIncome: 12000, monthlyExpenses: 6000, existingDebtPayment: 500 };
+
+    it("valida la captura manual", () => {
+      expect(parseFinancialAssessment({ ...valid, guaranteeValue: "60000" })).toMatchObject({
+        ...valid,
         guaranteeValue: 60000,
       });
-
-      expect(parsed.monthlySales).toBe(45000);
-      expect(parsed.monthlyIncome).toBe(15000);
-      expect(parsed.monthlyExpenses).toBe(8000);
-      expect(parsed.existingDebtPayment).toBe(1200);
-      expect(parsed.guaranteeValue).toBe(60000);
     });
 
-    it("rechaza valores negativos", () => {
-      expect(() =>
-        parseFinancialAssessmentInput({
-          operationId: "op-101",
-          monthlySales: -500,
-          monthlyIncome: 1000,
-          monthlyExpenses: 500,
-          existingDebtPayment: 0,
-        }),
-      ).toThrow(ValidationError);
+    it("un opcional vacío se omite, pero uno no numérico falla en lugar de descartarse en silencio", () => {
+      expect(parseFinancialAssessment({ ...valid, guaranteeValue: "" }).guaranteeValue).toBeUndefined();
+      expect(() => parseFinancialAssessment({ ...valid, guaranteeValue: "sesenta mil" })).toThrow(ValidationError);
+      expect(() => parseFinancialAssessment({ ...valid, projectedRoiPercent: "alto" })).toThrow(ValidationError);
     });
 
-    it("un dato no numérico da error en vez de descartarse", () => {
-      expect(() =>
-        parseFinancialAssessmentInput({
-          operationId: "op-101",
-          monthlySales: 45000,
-          monthlyIncome: 15000,
-          monthlyExpenses: 8000,
-          existingDebtPayment: 1200,
-          guaranteeValue: "no-es-numero",
-        }),
-      ).toThrow(ValidationError);
+    it("rechaza negativos y datos obligatorios ausentes", () => {
+      expect(() => parseFinancialAssessment({ ...valid, monthlyExpenses: -1 })).toThrow(ValidationError);
+      expect(() => parseFinancialAssessment({ ...valid, monthlyIncome: undefined })).toThrow(ValidationError);
     });
   });
 
-  describe("parseGuarantorInput", () => {
-    it("permite registrar datos de fiador con flexibilidad", () => {
-      const parsed = parseGuarantorInput({
-        operationId: "op-101",
-        fullName: "Roberto Carlos Morales",
-        phone: "55557766",
-        relationship: "Hermano",
-        financialAssessment: {
-          monthlyIncome: 8000,
-          monthlyExpenses: 4000,
-          existingDebtPayment: 500,
-        },
+  describe("fiador", () => {
+    it("basta el nombre; lo demás puede llegar después", () => {
+      expect(parseGuarantor({ fullName: "Lucía López" })).toEqual({
+        guarantor: { fullName: "Lucía López", dpi: undefined, phone: undefined, relationship: undefined },
+        assessment: undefined,
       });
-
-      expect(parsed.fullName).toBe("Roberto Carlos Morales");
-      expect(parsed.relationship).toBe("Hermano");
-      expect(parsed.financialAssessment?.monthlyIncome).toBe(8000);
     });
 
-    it("normaliza el DPI del fiador a 13 dígitos", () => {
-      const parsed = parseGuarantorInput({
-        operationId: "op-101",
-        fullName: "Roberto Carlos Morales",
-        dpi: "9876 54321 0101",
-      });
-      expect(parsed.dpi).toBe("9876543210101");
-    });
-
-    it("rechaza un DPI de fiador que no tiene 13 dígitos", () => {
+    it("si trae evaluación, sus números se validan", () => {
       expect(() =>
-        parseGuarantorInput({
-          operationId: "op-101",
-          fullName: "Roberto Carlos Morales",
-          dpi: "1234",
+        parseGuarantor({
+          fullName: "Lucía López",
+          financialAssessment: { monthlyIncome: "x", monthlyExpenses: 0, existingDebtPayment: 0 },
         }),
       ).toThrow(ValidationError);
     });
 
-    it("falla si el nombre del fiador no tiene al menos 3 caracteres", () => {
-      expect(() =>
-        parseGuarantorInput({
-          operationId: "op-101",
-          fullName: "A",
-        }),
-      ).toThrow(ValidationError);
+    it("falla con nombre de menos de 3 caracteres", () => {
+      expect(() => parseGuarantor({ fullName: "Lu" })).toThrow(ValidationError);
     });
   });
 
-  describe("parseWatchlistCheckInput", () => {
-    it("valida consultas a OFAC, ONU o Guatecompras", () => {
-      const parsed = parseWatchlistCheckInput({
-        operationId: "op-101",
+  describe("listas de control", () => {
+    it("valida OFAC, ONU o Guatecompras", () => {
+      expect(parseWatchlistCheck({ source: "OFAC", queryRef: "2345678900101", result: "CLEAR" })).toMatchObject({
         source: "OFAC",
-        queryRef: "2345678900101",
         result: "CLEAR",
-        checkedByUserId: "user-asesor-mario",
-        notes: "Sin coincidencias en lista SDN",
       });
-
-      expect(parsed.source).toBe("OFAC");
-      expect(parsed.result).toBe("CLEAR");
-      expect(parsed.checkedByUserId).toBe("user-asesor-mario");
+      expect(() => parseWatchlistCheck({ source: "FBI", queryRef: "x", result: "CLEAR" })).toThrow(ValidationError);
     });
 
-    it("rechaza fuentes de consulta desconocidas", () => {
-      expect(() =>
-        parseWatchlistCheckInput({
-          operationId: "op-101",
-          source: "OTRA_LISTA",
-          queryRef: "123",
-          result: "CLEAR",
-          checkedByUserId: "user-1",
-        }),
-      ).toThrow(ValidationError);
+    it("una coincidencia exige nota de qué coincidió", () => {
+      expect(() => parseWatchlistCheck({ source: "ONU", queryRef: "x", result: "MATCH_FOUND" })).toThrow(
+        ValidationError,
+      );
     });
   });
 });

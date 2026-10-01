@@ -1,73 +1,59 @@
 import {
   ValidationError,
   money,
-  toOperationId,
   toPersonId,
-  toUserId,
-  type CreateDraftOperationInput,
   type GuaranteeType,
+  type Money,
+  type PersonId,
   type ProductType,
 } from "@crece/shared";
-import { createChecklistItems, type Operation } from "@crece/domain";
 
-const VALID_PRODUCTS: ProductType[] = [
-  "WORKING_CAPITAL",
-  "INVESTMENT",
-  "MICROCREDIT",
-];
+const VALID_PRODUCTS: ProductType[] = ["WORKING_CAPITAL", "INVESTMENT", "MICROCREDIT"];
+const VALID_GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 
-const VALID_GUARANTEES: GuaranteeType[] = [
-  "MORTGAGE",
-  "PLEDGE",
-  "PERSONAL",
-  "MIXED",
-];
+/** Apertura de solicitud (fase 2). Quién la abre sale de la sesión, no del cuerpo. */
+export type OpenDraftOperationInput = {
+  personId: PersonId;
+  productType: ProductType;
+  guaranteeType: GuaranteeType;
+  requestedAmount: Money;
+  termMonths: number;
+  purpose: string;
+  hasGuarantor: boolean;
+};
 
-/**
- * Contrato de apertura de solicitud de crédito (Fase 2).
- * Valida parámetros iniciales y genera la solicitud en estado DRAFT con su checklist.
- */
-export function parseCreateDraftOperation(input: unknown): CreateDraftOperationInput {
+export function parseOpenDraftOperation(input: unknown): OpenDraftOperationInput {
   if (typeof input !== "object" || input === null) {
     throw new ValidationError("Cuerpo de apertura de solicitud inválido");
   }
-
   const body = input as Record<string, unknown>;
   const personId = String(body.personId ?? "").trim();
   const productType = body.productType as ProductType;
   const guaranteeType = body.guaranteeType as GuaranteeType;
-  const amount = Number(body.requestedAmount ?? body.amount);
+  const amount = Number(body.requestedAmount);
   const termMonths = Number(body.termMonths);
   const purpose = String(body.purpose ?? "").trim();
-  const hasGuarantor = Boolean(body.hasGuarantor);
-  const createdBy = String(body.createdBy ?? "").trim();
 
   if (personId.length === 0) {
-    throw new ValidationError("El identificador del solicitante (personId) es obligatorio");
+    throw new ValidationError("Elige al solicitante de la solicitud");
   }
-
   if (!VALID_PRODUCTS.includes(productType)) {
-    throw new ValidationError("Tipo de producto de crédito inválido");
+    throw new ValidationError("Elige un producto de crédito válido");
   }
-
   if (!VALID_GUARANTEES.includes(guaranteeType)) {
-    throw new ValidationError("Tipo de garantía inválido");
+    throw new ValidationError("Elige un tipo de garantía válido");
   }
-
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new ValidationError("El monto solicitado debe ser un número positivo");
+    throw new ValidationError("El monto solicitado debe ser mayor que cero");
   }
-
   if (!Number.isInteger(termMonths) || termMonths < 1) {
-    throw new ValidationError("El plazo en meses debe ser un entero mayor o igual a 1");
+    throw new ValidationError("El plazo debe ser un número entero de meses (1 o más)");
   }
-
   if (purpose.length < 3) {
-    throw new ValidationError("El destino del crédito es obligatorio y debe describirse");
+    throw new ValidationError("Describe el destino del crédito");
   }
-
-  if (createdBy.length === 0) {
-    throw new ValidationError("Se requiere el usuario que apertura la solicitud");
+  if (typeof body.hasGuarantor !== "boolean") {
+    throw new ValidationError("Indica si la solicitud lleva fiador");
   }
 
   return {
@@ -77,41 +63,6 @@ export function parseCreateDraftOperation(input: unknown): CreateDraftOperationI
     requestedAmount: money(amount),
     termMonths,
     purpose,
-    hasGuarantor,
-    createdBy: toUserId(createdBy),
-  };
-}
-
-/**
- * Instancia la entidad Operation en estado borrador (DRAFT)
- * y resuelve automáticamente la lista de requisitos inicial dinámica.
- */
-export function toDraftOperationEntity(
-  input: CreateDraftOperationInput,
-  operationId: string,
-  now = new Date().toISOString(),
-): Operation {
-  const checklist = createChecklistItems({
-    productType: input.productType,
-    guaranteeType: input.guaranteeType,
-    hasGuarantor: input.hasGuarantor,
-  });
-
-  return {
-    id: toOperationId(operationId),
-    personId: input.personId,
-    productType: input.productType,
-    guaranteeType: input.guaranteeType,
-    hasGuarantor: input.hasGuarantor,
-    requestedAmount: input.requestedAmount,
-    termMonths: input.termMonths,
-    purpose: input.purpose,
-    state: "DRAFT",
-    checklist,
-    hardRuleHits: [],
-    verdicts: [],
-    createdBy: input.createdBy,
-    createdAt: now,
-    updatedAt: now,
+    hasGuarantor: body.hasGuarantor,
   };
 }

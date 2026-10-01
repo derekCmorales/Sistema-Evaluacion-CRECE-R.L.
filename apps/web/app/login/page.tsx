@@ -1,29 +1,20 @@
-"use client";
+import Link from "next/link";
 
-import { useRouter } from "next/navigation";
-import { OFFICE_LABELS, type Office } from "@crece/shared";
-import { useCrece } from "../../lib/crece-ds";
-import { useSession } from "../../lib/session";
-
-export default function LoginPage() {
-  const crece = useCrece();
-  const session = useSession();
-  const router = useRouter();
-  if (!crece) return null;
-  const { PageHeader, Card, Select, Button } = crece;
-
+export default function LoginPlaceholder() {
   return (
-    <>
-      <PageHeader title="Entrar" description="Elige el cargo con el que vas a trabajar. No es una cuenta de gerencia." />
-      <Card title="Cargo">
-        <Select
-          label="Cargo"
-          value={session.offices[0]}
-          onChange={(value: string) => session.setOffices([value as Office])}
-          options={Object.entries(OFFICE_LABELS)}
-        />
-        <Button onClick={() => router.push("/dashboard")}>Continuar</Button>
-      </Card>
-    </>
+    <div className="min-h-screen flex items-center justify-center bg-zinc-100 p-6">
+      <div className="bg-white shadow-sm border rounded-lg p-8 max-w-md w-full">
+        <h1 className="text-xl font-semibold text-[#034381] mb-2">
+          Iniciar sesión
+        </h1>
+        <p className="text-sm text-zinc-600 mb-6">
+          Autenticación no implementada en bootstrap. Integración futura vía API
+          Nest y `AuthGateway`.
+        </p>
+        <Link href="/" className="text-sm text-[#e8973c] hover:underline">
+          Volver al inicio
+        </Link>
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatGtq, maskDpi } from "./format";
+import { formatDpi, formatGtq, maskDpi } from "./format";
 
 describe("formatGtq", () => {
   it("formatea miles con prefijo Q y dos decimales", () => {
@@ -13,13 +13,13 @@ describe("formatGtq", () => {
   });
 });
 
-describe("maskDpi", () => {
-  it("deja visibles los extremos y oculta el centro", () => {
-    expect(maskDpi("2345678900101")).toBe("2345•••••0101");
-    expect(maskDpi("2345 67890 0101")).toBe("2345•••••0101");
+describe("DPI para mostrar", () => {
+  it("agrupa el DPI en 4-5-4", () => {
+    expect(formatDpi("2345678900101")).toBe("2345 67890 0101");
   });
 
-  it("no revela un valor que no es DPI", () => {
-    expect(maskDpi("123")).toBe("•••••••••••••");
+  it("en listados enmascara todo salvo los últimos 4 dígitos", () => {
+    expect(maskDpi("2345678900101")).toBe("•••• ••••• 0101");
+    expect(maskDpi("2345678900101")).not.toContain("23456");
   });
 });
