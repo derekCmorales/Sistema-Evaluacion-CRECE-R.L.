@@ -25,5 +25,6 @@ Arquitectura de **este** repo (greenfield): `apps/web` (Next.js) + `apps/api` (N
 | 18 | Ocho fases | [18-ocho-fases.md](./18-ocho-fases.md) |
 | 19 | Testing (siempre) | [19-testing.md](./19-testing.md) |
 | 20 | Secuencia captación (fases 1–3) | [20-secuencia-captacion.md](./20-secuencia-captacion.md) |
+| 21 | Secuencia revisión y autorización (fases 4–7) | [21-secuencia-revision-autorizacion.md](./21-secuencia-revision-autorizacion.md) |
 
 Los PNG del Documento 1 que ya están en esta carpeta son archivo visual histórico. **No se agregan imágenes nuevas**: cualquier diagrama nuevo va en Markdown/Mermaid. Narrativa de pruebas: [testing.md](../testing.md).

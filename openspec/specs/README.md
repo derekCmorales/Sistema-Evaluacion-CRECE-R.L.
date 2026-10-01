@@ -7,6 +7,7 @@ Specs **estables** del dominio CRECE, transferidas desde el conocimiento del MVP
 | [person-operations](./person-operations/spec.md) | Persona, estados de operación, prospecto ≠ operación |
 | [authorization-policy](./authorization-policy/spec.md) | Umbral, dual firma, quórum, invariantes |
 | [rbac](./rbac/spec.md) | Usuario / cargo / permiso; consultar ≠ operar |
+| [case-assembly](./case-assembly/spec.md) | Armado del expediente: edición, fiador, listas de control, huecos |
 | [checklist](./checklist/spec.md) | Plantilla dinámica, N/A, faltante visible, vigencia |
 | [decision-factors](./decision-factors/spec.md) | Vocabulario sin pesos |
 | [ai-assist](./ai-assist/spec.md) | OCR humano, IA en revisión, sin veredicto |
@@ -17,6 +18,7 @@ Specs **estables** del dominio CRECE, transferidas desde el conocimiento del MVP
 Flujo de evaluación: prospecto → operación → cálculo → reglas duras → revisión (IA) → autorización → post-aprobación.
 
 Estados: [13-estados-operation.md](../../docs/diagramas/13-estados-operation.md).
+Change en curso: [`review-and-authorization`](../changes/review-and-authorization/proposal.md) (sprint 2, fases 4–7).
 Pruebas: cada spec tiene sección **Tests**; la puerta del repo está en [docs/testing.md](../../docs/testing.md).
 
 ## Cómo cambiar specs

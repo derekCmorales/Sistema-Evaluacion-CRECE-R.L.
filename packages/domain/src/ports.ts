@@ -10,6 +10,7 @@ import type {
   UserId,
   Office,
   NotificationType,
+  OperationSubmittedForReview,
 } from "@crece/shared";
 import type { CalcEngineInput, CalcResult, FinancialAssessmentInput } from "./calc-engine";
 import type { AuditEntry } from "./audit-log";
@@ -65,6 +66,24 @@ export type CalcEngine = {
 export type DecisionLog = {
   append(entry: Omit<DecisionLogEntry, "id" | "at">): Promise<DecisionLogEntry>;
   findByOperation(operationId: OperationId): Promise<DecisionLogEntry[]>;
+};
+
+/**
+ * Directorio de usuarios internos: nombre para el acta y cuántos tienen un cargo
+ * (el quórum del Consejo se mide contra los miembros activos). Lo implementa el
+ * `AuthGateway` cuando exista; hoy, la sesión de desarrollo.
+ */
+export type UserDirectory = {
+  displayName(userId: UserId): Promise<string>;
+  countByOffice(office: Office): Promise<number>;
+};
+
+/**
+ * Publica los hechos del proceso de crédito hacia quien quiera reaccionar (hoy, el motor de IA).
+ * Quien publica no espera a los suscriptores: si nadie escucha o alguno falla, el caso de uso igual termina.
+ */
+export type ReviewFactsPublisher = {
+  publish(fact: OperationSubmittedForReview): Promise<void>;
 };
 
 export type AuditLog = {

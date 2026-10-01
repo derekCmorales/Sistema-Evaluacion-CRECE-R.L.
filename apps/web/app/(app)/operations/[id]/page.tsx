@@ -19,8 +19,22 @@ import { ChecklistPanel } from "../../../../components/case-file/checklist-panel
 import { GuarantorPanel } from "../../../../components/case-file/guarantor-panel";
 import { HistoryPanel } from "../../../../components/case-file/history-panel";
 import { WatchlistPanel } from "../../../../components/case-file/watchlist-panel";
+import { CalcTab } from "../../../../components/case-file/calc-tab";
+import { OpinionTab } from "../../../../components/case-file/opinion-tab";
+import { AiReviewTab } from "../../../../components/case-file/ai-review-tab";
+import { DecisionTab } from "../../../../components/case-file/decision-tab";
 
-type Tab = "checklist" | "assessment" | "guarantor" | "watchlist" | "history";
+/** Fases 1–3 (captura) y una pestaña por carril del sprint 2; cada carril llena su archivo. */
+type Tab =
+  | "checklist"
+  | "assessment"
+  | "guarantor"
+  | "watchlist"
+  | "calc"
+  | "opinion"
+  | "ai-review"
+  | "decision"
+  | "history";
 
 /** C-03 en etapa Captura: expediente de la solicitud (fase 3). */
 export default function CaseFilePage() {
@@ -93,6 +107,10 @@ export default function CaseFilePage() {
           ["assessment", "Evaluación"],
           ["guarantor", "Fiador"],
           ["watchlist", "Listas de control"],
+          ["calc", "Cálculo y reglas"],
+          ["opinion", "Dictamen"],
+          ["ai-review", "Revisión IA"],
+          ["decision", "Decisión"],
           ["history", "Bitácora"],
         ]}
       />
@@ -105,6 +123,10 @@ export default function CaseFilePage() {
           {tab === "watchlist" && (
             <WatchlistPanel {...panelProps} defaultQuery={profile.data?.person.dpi ? formatDpi(profile.data.person.dpi) : personName} />
           )}
+          {tab === "calc" && <CalcTab {...panelProps} />}
+          {tab === "opinion" && <OpinionTab {...panelProps} />}
+          {tab === "ai-review" && <AiReviewTab {...panelProps} />}
+          {tab === "decision" && <DecisionTab {...panelProps} />}
           {tab === "history" && (
             <HistoryPanel
               operationId={operation.id}

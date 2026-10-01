@@ -2,6 +2,8 @@
 
 Orden de lectura **e2e** (humano o agente). No saltar al código de features sin el contrato.
 
+> **Sprint en curso:** [sprint-2.md](./sprint-2.md) — fases 4 a 7. Si vienes a trabajar en el sprint, empieza por su sección 1.
+
 | Paso | Documento | Qué cubre |
 |------|-----------|-----------|
 | 1 | [README.md](../README.md) | Qué es el repo, pnpm, Compose, estructura |

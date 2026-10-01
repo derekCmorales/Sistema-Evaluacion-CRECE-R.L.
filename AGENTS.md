@@ -2,6 +2,8 @@
 
 Guía para **agentes de IA y desarrolladores**.
 
+**Sprint en curso:** [`docs/sprint-2.md`](./docs/sprint-2.md) — fases 4 a 7, carriles con dueño, contrato y brief para agentes. Léelo antes de tocar código.
+
 **Empezar por:** [`docs/README.md`](./docs/README.md) → [`docs/contexto.md`](./docs/contexto.md) → [`docs/como-trabajar.md`](./docs/como-trabajar.md) → specs en `openspec/specs/`.
 
 > El monorepo histórico `CRECE-MVP` es **solo aprendizaje**. No copiar sus apps. El conocimiento de negocio **sí** aplica: contexto, invariantes, RF y estos paquetes de dominio.
@@ -85,6 +87,15 @@ pnpm build && pnpm lint
 ```
 
 ---
+### Protocolo de sprint
+
+- Cada fase tiene un dueño y un carril de archivos (`docs/sprint-<n>.md`). No edites archivos de otro carril: pídelo en su PR.
+- El contrato (tipos de `packages/shared`, puertos de `packages/domain/src/ports.ts`, permisos, tokens de inyección, registro de pestañas) solo cambia en un PR al contrato.
+- El actor sale de la sesión (`@CurrentActor`); ningún DTO trae autor, cargo ni origen.
+- Rama nueva desde `main` actualizado (`feat/s<n>-<carril>-<tema>`); PRs pequeños; sin push forzado ni nombres de rama reutilizados.
+- Marca en el `tasks.md` del change las tareas que cierras.
+
+---
 
 ## 6. Anti-objetivos
 
@@ -101,6 +112,7 @@ pnpm build && pnpm lint
 
 ## 7. Referencias
 
+- Sprint en curso: `docs/sprint-2.md`
 - Contexto: `docs/contexto.md`
 - Uso / API: `docs/uso.md`
 - Testing (siempre): `docs/testing.md`
