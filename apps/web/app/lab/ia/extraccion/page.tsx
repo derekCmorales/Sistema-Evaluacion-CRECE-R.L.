@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCrece } from "../../../../lib/crece-ds";
 import {
   IMAGE_KIND_LABELS,
+  INJECTION_PATTERN_LABELS,
   LabApiError,
   RUN_STATUS_LABELS,
   RUN_STATUS_TONE,
@@ -16,9 +17,12 @@ import {
   type LabExtraction,
   type LabMeta,
   type LabRun,
+  type LabStatus,
 } from "../../../../lib/lab-api";
 
 const MB = 1024 * 1024;
+/** Tiempo en cola a partir del cual se revisa si hay worker. */
+const QUEUED_HINT_MS = 8_000;
 
 function ExtractionLab() {
   const { Card, Select, FileDrop, Button, Alert, ProgressBar, Badge, Stat, DataTable, Tabs, EmptyState } = useCrece();
@@ -31,8 +35,10 @@ function ExtractionLab() {
   const [documentType, setDocumentType] = useState("BUREAU_REPORT");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<LabRun | null>(null);
+  const [workers, setWorkers] = useState<LabStatus | null>(null);
   const [extraction, setExtraction] = useState<LabExtraction | null>(null);
   const [page, setPage] = useState("1");
   const abort = useRef<AbortController | null>(null);
@@ -47,6 +53,7 @@ function ExtractionLab() {
     abort.current = controller;
     setExtraction(null);
     setError(null);
+    setWorkers(null);
     try {
       const finished = await waitForRun(runId, setRun, controller.signal);
       if (finished.status !== "FAILED" && finished.output?.extractionId) {
@@ -62,6 +69,13 @@ function ExtractionLab() {
     if (runParam) void follow(runParam);
     return () => abort.current?.abort();
   }, [runParam, follow]);
+
+  // Si la ejecución lleva un rato en cola, se pregunta a la API si hay algún worker vivo.
+  const queuedTooLong = run?.status === "QUEUED" && Date.now() - Date.parse(run.createdAt) > QUEUED_HINT_MS;
+  useEffect(() => {
+    if (!queuedTooLong) return;
+    labApi.status().then(setWorkers, () => undefined);
+  }, [queuedTooLong, run?.id]);
 
   const selectedType = meta?.documentTypes.find((t) => t.type === documentType);
 
@@ -79,8 +93,23 @@ function ExtractionLab() {
     }
   }
 
+  async function retry() {
+    if (!run) return;
+    setRetrying(true);
+    setError(null);
+    try {
+      const accepted = await labApi.retry(run.id);
+      router.replace(`/lab/ia/extraccion?run=${accepted.runId}`);
+    } catch (e) {
+      setError(e instanceof LabApiError ? e.message : "No se pudo reintentar");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   const currentPage = extraction?.pages.find((p) => String(p.index) === page);
   const running = run != null && !TERMINAL_STATUSES.includes(run.status);
+  const signalPages = extraction?.pages.filter((p) => p.injectionSignals?.length) ?? [];
 
   const candidateRows = useMemo(
     () =>
@@ -144,8 +173,21 @@ function ExtractionLab() {
         >
           <div style={{ display: "grid", gap: "var(--space-4)" }}>
             {running && <ProgressBar value={0} indeterminate label="Extrayendo con OCR" />}
+            {queuedTooLong && workers && workers.workersOnline === 0 && (
+              <Alert tone="warning" title="No hay ningún worker corriendo">
+                La ejecución espera en cola. Arranca el worker con «pnpm --filter @crece/api start:worker».
+              </Alert>
+            )}
             {run.status === "FAILED" && (
-              <Alert tone="danger" title={run.errorCode ?? "Falló"}>
+              <Alert
+                tone="danger"
+                title={run.errorCode ?? "Falló"}
+                actions={
+                  <Button variant="secondary" size="sm" onClick={retry} loading={retrying} disabled={retrying}>
+                    Reintentar
+                  </Button>
+                }
+              >
                 {run.errorMessage}
               </Alert>
             )}
@@ -159,9 +201,26 @@ function ExtractionLab() {
             </div>
             <p className="caption" style={{ color: "var(--text-secondary)" }}>
               Modelo: {run.modelId ?? "—"} · Ejecución {run.id}
+              {run.retryOf ? ` · Reintento de ${run.retryOf}` : ""}
             </p>
           </div>
         </Card>
+      )}
+
+      {extraction?.injectionSuspected && (
+        <Alert tone="warning" title="El documento contiene texto dirigido a una IA">
+          Se extrajo igual, como dato: nada del documento cambia lo que hace el motor. Los campos de las páginas señaladas quedan
+          para revisar contra el original.
+          <ul style={{ margin: "var(--space-2) 0 0", paddingLeft: "var(--space-5)" }}>
+            {signalPages.flatMap((p) =>
+              p.injectionSignals!.map((s) => (
+                <li key={`${p.index}-${s.patternId}`} className="body-sm">
+                  Pág. {p.index} · {INJECTION_PATTERN_LABELS[s.patternId] ?? s.patternId}: «{s.excerpt}»
+                </li>
+              )),
+            )}
+          </ul>
+        </Alert>
       )}
 
       {extraction && (
@@ -245,16 +304,23 @@ function ExtractionLab() {
           </div>
 
           <Card title="Imágenes clasificadas">
+            <p className="body-sm" style={{ color: "var(--text-secondary)", marginBottom: "var(--space-4)" }}>
+              Las descripciones las escribe el modelo de OCR: no son texto del documento y nunca sirven como evidencia.
+            </p>
             <DataTable
               columns={[
                 { key: "page", label: "Página", numeric: true },
                 { key: "kind", label: "Tipo", render: (row: { kind: string }) => IMAGE_KIND_LABELS[row.kind] ?? row.kind },
-                { key: "description", label: "Descripción" },
+                { key: "description", label: "Descripción del modelo" },
               ]}
               rows={extraction.images}
               empty={<EmptyState title="Sin imágenes relevantes" description="Logos y decoración se descartan." />}
             />
           </Card>
+
+          <p className="caption" style={{ color: "var(--text-secondary)" }}>
+            Esquema {extraction.schemaCode} v{extraction.schemaVersion} · Huella del pipeline {extraction.pipelineFingerprint}
+          </p>
         </>
       )}
     </div>

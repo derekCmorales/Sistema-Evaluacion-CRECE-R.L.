@@ -5,7 +5,8 @@ import { OperationsModule } from "./modules/operations/operations.module";
 import { ApprovalsModule } from "./modules/approvals/approvals.module";
 import { CatalogModule } from "./modules/catalog/catalog.module";
 import { AiModule } from "./modules/ai/ai.module";
-import { LabController } from "./modules/ai/lab.controller";
+import { createLabContext } from "./modules/ai/lab/lab-context";
+import { LabModule } from "./modules/ai/lab/lab.module";
 import type { AiEnv } from "./infrastructure/ai/ai-env";
 
 @Module({
@@ -18,10 +19,19 @@ import type { AiEnv } from "./infrastructure/ai/ai-env";
   ],
 })
 export class AppModule {
-  /** El motor de IA entra como módulo aparte; apagado, el resto de la API no cambia. */
+  /**
+   * Composition root de la API. El motor de IA entra como módulo aparte (apagado, el resto de la
+   * API no cambia). El laboratorio solo se registra fuera de producción y con su flag, y es lo
+   * único que conoce su almacenamiento; su guard lo vuelve a verificar en cada solicitud.
+   */
   static forRoot(aiEnv: AiEnv): DynamicModule {
-    // El lab solo se registra fuera de producción y con el flag; su guard lo vuelve a verificar.
-    const controllers = aiEnv.lab.enabled ? [LabController] : [];
-    return { module: AppModule, imports: [AiModule.register(aiEnv, controllers)] };
+    const lab = createLabContext(aiEnv);
+    return {
+      module: AppModule,
+      imports: [
+        AiModule.register(aiEnv, { role: "api", documentRoutes: lab ? [lab.documentRoute] : [] }),
+        ...(lab ? [LabModule.register(lab)] : []),
+      ],
+    };
   }
 }

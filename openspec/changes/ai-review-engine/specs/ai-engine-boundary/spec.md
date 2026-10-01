@@ -30,11 +30,44 @@ The engine SHALL persist only in its own database schema (`ai`). It MUST NOT cre
 - **THEN** the operation state, assessment, calc result and verdicts are byte-identical to before the run, and a `ReviewAnalysisCompleted` event carries the result reference
 
 ### Requirement: Asynchronous, idempotent commands
-Commands that call external providers SHALL be accepted immediately with a run id and executed in the background. A command repeated with the same idempotency key SHALL NOT create a second run.
+Commands that call external providers SHALL be accepted immediately with a run id and executed in the background. Creating the run and enqueueing its job SHALL be one atomic step. A command repeated with the same idempotency key while a run is alive SHALL NOT create a second run; a failed run does not hold its key.
 
 #### Scenario: Duplicate submission
 - **WHEN** `RunReviewAnalysis` is sent twice for the same operation with the same idempotency key
 - **THEN** both calls return the same run id and the provider is called at most once
+
+#### Scenario: Queue unavailable at submission
+- **WHEN** enqueueing the job fails
+- **THEN** the command fails and no run is left waiting forever
+
+### Requirement: Exactly-one execution and no stuck runs
+A run SHALL be executed by one worker at a time: a worker claims it atomically, and another worker may take it over only after the claim expires. A run that does not finish within the configured stall period SHALL be marked failed as interrupted (retryable), with its failure event. An authorized user can retry any failed run; the retry is a new run with the same input, linked to the failed one.
+
+#### Scenario: Two workers receive the same job
+- **WHEN** the queue redelivers a job while another worker is processing it
+- **THEN** the provider is called once
+
+#### Scenario: Worker dies mid-run
+- **WHEN** the worker stops and no one finishes the run within the stall period
+- **THEN** the run is `FAILED` with `AI_RUN_INTERRUPTED`, `AiRunFailed` is emitted with `retryable = true`, and a retry creates a new run
+
+### Requirement: Host facts entry point and event delivery
+Host facts SHALL enter the engine through one entry point that maps each fact to a command; a fact that does not trigger work yet returns no run. Engine events SHALL carry a unique `eventId` and a schema version, and be delivered at least once to in-process subscribers of the host; consumers deduplicate by `eventId`. An event whose consumer keeps failing is set aside after a configured number of attempts without blocking other events.
+
+#### Scenario: Fact delivered twice
+- **WHEN** the host publishes the same `DocumentUploaded` twice
+- **THEN** a single extraction run exists
+
+#### Scenario: Consumer temporarily down
+- **WHEN** a subscriber throws while handling `DocumentExtractionCompleted`
+- **THEN** the event is retried on the next pass and is not lost
+
+### Requirement: The lab is optional
+Production code SHALL NOT depend on the internal lab. The engine module receives additional document sources generically; only composition roots decide whether the lab is registered.
+
+#### Scenario: Import from production code
+- **WHEN** a production module imports a lab file
+- **THEN** the architecture test fails and names the import
 
 ### Requirement: Feature flag and graceful degradation
 The engine SHALL be switchable by configuration. When disabled or when a run fails permanently, the credit process MUST continue: submitting for review is not blocked, and the operation shows that AI analysis is unavailable with the option to retry.
@@ -64,6 +97,9 @@ Provider credentials SHALL exist only in the API/worker environment. They MUST N
 ## Tests
 
 - `packages/ai-engine/src/contracts/contracts.test.ts`
+- `packages/ai-engine/src/use-cases/run-lifecycle.test.ts` (claim, retry, stalled runs, host facts, status)
 - `packages/ai-engine/src/use-cases/run-review-analysis.test.ts` (idempotency, write isolation with fakes)
-- `packages/ai-engine/src/architecture.test.ts` and `packages/ai-engine/src/import-scanner.test.ts`
+- `packages/ai-engine/src/architecture/architecture.test.ts` and `packages/ai-engine/src/architecture/import-scanner.test.ts` (includes lab isolation)
 - `apps/api/src/modules/ai/ai-disabled.test.ts`
+- `apps/api/src/infrastructure/ai/db/pg-stores.integration.test.ts` and `queue/job-queue.integration.test.ts` (atomic admission, claim, outbox relay)
+- `apps/api/src/modules/ai/ai-runtime.integration.test.ts` (API + worker + queue + outbox end to end)

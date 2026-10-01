@@ -34,20 +34,25 @@ Variables mínimas en `.env` (raíz): `AI_ENGINE_ENABLED=true`, `AI_LAB_ENABLED=
 | `estado-cuenta-sintetico.pdf` | Estado de cuenta | Saldo promedio `Q12,450.75`, depósitos `Q21,300.00` |
 | `recibo-servicio-sintetico.pdf` | Recibo de servicio | Dirección y fecha `05/09/2026` |
 | `buro-formato-europeo.pdf` | Reporte de buró | Montos normalizados a `Q2,150.00` / `Q30,000.00` y marcados **Revisar** ("Formato de monto inusual") |
-| `recibo-con-inyeccion.pdf` | Recibo de ingresos | Extrae periodo y monto; el texto de la "Nota" aparece en el texto de la página, **nunca** como valor de un campo |
+| `recibo-con-inyeccion.pdf` | Recibo de ingresos | Extrae periodo y monto; el texto de la "Nota" aparece en el texto de la página, **nunca** como valor de un campo; aviso "El documento contiene texto dirigido a una IA" con la página y el fragmento; los campos quedan **Revisar** ("texto dirigido a una IA") |
 
 - [ ] Para cada archivo de la tabla: subir, elegir el tipo y pulsar **Extraer**. La ejecución pasa por "En cola" → "Procesando" → "Listo".
 - [ ] Los campos coinciden con la columna "Esperado". Los que no, quedan registrados abajo con captura del texto extraído.
 - [ ] Ningún campo aparece como "Confirmado": todos dicen "Pendiente de confirmación" o "Revisar".
 - [ ] El documento original (izquierda) y el texto por página (derecha) corresponden a la misma página al cambiar de pestaña.
 - [ ] Subir **dos veces el mismo archivo**: la segunda ejecución dice "Reutilizado", con costo US$0.
-- [ ] Subir un `.docx` o `.txt`: error claro "Formato no admitido", y en Ejecuciones el costo es US$0.
-- [ ] Subir un PDF protegido con contraseña: "PDF protegido con contraseña", sin costo.
+- [ ] Subir un `.docx` o `.txt`: error claro "Formato no admitido", y en Ejecuciones el costo aparece como "—" (no se llamó al proveedor).
+- [ ] Subir un PDF protegido: "PDF protegido (contraseña o restricciones)…", sin costo.
+- [ ] Subir un PDF exportado por un programa moderno (Word, Google Docs, banca en línea): pasa el preflight y muestra el número de páginas correcto.
+- [ ] Renombrar un `.html` a `.pdf` y subirlo: falla como "Formato no admitido" y el visor de la izquierda lo ofrece como descarga (nunca lo muestra como página).
+- [ ] En una ejecución fallida, **Reintentar** crea una ejecución nueva ("Reintento de …") y deja la fallida en el historial.
+- [ ] Con el worker apagado, subir un archivo: tras unos segundos aparece "No hay ningún worker corriendo" con el comando para arrancarlo; al arrancarlo, la ejecución avanza sola.
+- [ ] La tabla "Imágenes clasificadas" dice "Descripción del modelo" y el texto de la página no contiene descripciones de imágenes.
 - [ ] Subir una foto de celular de un documento sintético impreso: los campos con baja confianza quedan en "Revisar: baja confianza".
 
 ## 3. Ejecuciones
 
-- [ ] La lista muestra fecha, tarea, estado, modelo, tiempo, costo y error.
+- [ ] La lista muestra fecha, tarea, estado, modelo, tiempo, costo, error y señales (inyección o reintento), más workers activos y ejecuciones en cola.
 - [ ] Clic en una extracción reabre su resultado en la pestaña Extracción.
 - [ ] El total de costo estimado suma lo que muestran las filas.
 

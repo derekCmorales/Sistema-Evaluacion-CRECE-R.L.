@@ -13,7 +13,10 @@ export const AI_PG_TYPES: CustomTypesConfig = {
   }) as CustomTypesConfig["getTypeParser"],
 };
 
-export function createAiPool(databaseUrl: string, max = 5): Pool {
+/** Pool del esquema `ai`. El resto de la API lo trata como recurso opaco (el SDK queda en infraestructura). */
+export type AiPool = Pool;
+
+export function createAiPool(databaseUrl: string, max = 5): AiPool {
   const pool = new Pool({
     connectionString: databaseUrl,
     max,

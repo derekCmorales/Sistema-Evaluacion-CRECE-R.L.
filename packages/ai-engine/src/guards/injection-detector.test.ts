@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AI_ENGINE_CONFIG_SEED } from "../config/engine-config";
-import { LAB_FIXTURES } from "../testing/lab-fixtures";
+import { EXTRACTION_FIXTURES } from "../testing/extraction-fixtures";
 import { canonicalForDetection, compileInjectionPatterns, detectInjection, stripInvisible } from "./injection-detector";
 
 const patterns = compileInjectionPatterns(AI_ENGINE_CONFIG_SEED.safety.injectionPatterns);
@@ -43,8 +43,8 @@ describe("detector de inyección (semilla)", () => {
     for (const text of clean) expect(ids(text), text).toEqual([]);
   });
 
-  it("el fixture red-team del laboratorio produce señales y los demás no", () => {
-    for (const fixture of LAB_FIXTURES) {
+  it("el fixture red-team produce señales y los demás no", () => {
+    for (const fixture of EXTRACTION_FIXTURES) {
       const found = ids(fixture.pages.flat().join("\n"));
       if (fixture.fileName === "recibo-con-inyeccion.pdf") expect(found.length, fixture.fileName).toBeGreaterThan(0);
       else expect(found, fixture.fileName).toEqual([]);

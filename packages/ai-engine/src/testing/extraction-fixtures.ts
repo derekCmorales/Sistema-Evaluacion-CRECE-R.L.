@@ -2,10 +2,10 @@ import type { DocumentType } from "../contracts/common";
 import { syntheticPdf } from "./synthetic-files";
 
 /**
- * Documentos sintéticos del laboratorio y su resultado esperado (golden set de extracción).
+ * Documentos sintéticos y su resultado esperado (golden set de extracción). Los usan la evaluación y el laboratorio.
  * Personas, CUI y montos son inventados. Nunca agregar datos reales.
  */
-export type LabFixture = {
+export type ExtractionFixture = {
   fileName: string;
   documentType: DocumentType;
   description: string;
@@ -14,7 +14,7 @@ export type LabFixture = {
   expected: Record<string, string>;
 };
 
-export const LAB_FIXTURES: LabFixture[] = [
+export const EXTRACTION_FIXTURES: ExtractionFixture[] = [
   {
     fileName: "dpi-sintetico.pdf",
     documentType: "DPI",
@@ -138,6 +138,6 @@ export const LAB_FIXTURES: LabFixture[] = [
   },
 ];
 
-export function labFixtureBytes(fixture: LabFixture): Uint8Array {
+export function extractionFixtureBytes(fixture: ExtractionFixture): Uint8Array {
   return syntheticPdf(fixture.pages);
 }

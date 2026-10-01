@@ -25,6 +25,9 @@ const STATUS_BY_CODE: Record<string, number> = {
   AI_PROVIDER_ERROR: HttpStatus.BAD_GATEWAY,
   AI_OUTPUT_INVALID: HttpStatus.BAD_GATEWAY,
   AI_OUTPUT_FORBIDDEN: HttpStatus.BAD_GATEWAY,
+  AI_TASK_UNAVAILABLE: HttpStatus.NOT_IMPLEMENTED,
+  AI_RUN_INTERRUPTED: HttpStatus.SERVICE_UNAVAILABLE,
+  AI_INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
 export function httpStatusForDomainCode(code: string): number {

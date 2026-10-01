@@ -87,9 +87,13 @@ flowchart TB
 - **Eventos del motor:** `DocumentExtractionCompleted`, `KnowledgeSourceIndexed`, `Draft5CReady`, `ReviewAnalysisCompleted`, `AiRunFailed`.
 - **Mecánica:**
   1. El comando inserta un `ai_run` (estado `QUEUED`) y un job en **pg-boss**, en la misma transacción. La clave de idempotencia es un índice único en `ai_run`.
-  2. El **worker** ejecuta el job y escribe el resultado y una fila en `ai.outbox` en una transacción.
-  3. Un *relay* publica los eventos del outbox al bus de eventos de Nest (in-process).
-- **Worker:** la misma imagen de `apps/api` con `AI_WORKER=true`, que arranca un contexto Nest sin HTTP. En Compose es un servicio `ai-worker` en el perfil `dev`.
+     - La transacción es la del store: el motor recibe una `Transaction` opaca y se la pasa a `JobQueue.enqueue` (pg-boss `send(..., { db })`). Si encolar falla, la ejecución tampoco existe: nunca queda un `QUEUED` huérfano.
+     - La clave de idempotencia es un índice único **parcial** (`WHERE status <> 'FAILED'`): una ejecución fallida no bloquea su clave, así que volver a pedir la misma extracción (o `retryRun`) crea una nueva, enlazada por `retry_of`.
+  2. El **worker** *reclama* la ejecución con compare-and-set (`QUEUED → RUNNING`, o `RUNNING` con `started_at` anterior al plazo `runs.leaseSeconds`, igual a la expiración del job en pg-boss). Dos workers, o una reentrega de la cola, nunca llaman dos veces al proveedor. Termina escribiendo el resultado y una fila en `ai.outbox` en una transacción, solo si sigue `RUNNING`.
+  3. Un *relay* en el proceso **API** publica los eventos del outbox al bus in-process (`AI_EVENTS`), con `FOR UPDATE SKIP LOCKED` (varias instancias sin duplicar). Entrega "al menos una vez": cada evento lleva `eventId` y `schemaVersion`, y el consumidor deduplica por `eventId`. Un evento cuyo consumidor falla se reintenta; tras 10 intentos queda descartado (`dead_at`) y se registra. Sin suscriptores, los eventos esperan (no se marcan publicados).
+  4. Un **barrido** en el worker (cada minuto) marca `FAILED` con `AI_RUN_INTERRUPTED` (reintentable, con su evento) lo que siga `QUEUED`/`RUNNING` pasado `runs.stalledAfterSeconds`: ninguna ejecución queda "procesando" para siempre. El mismo barrido purga `raw_response` vencida.
+  5. Los hechos del anfitrión entran por **`AiEngine.handle(fact)`**: el mapeo hecho → comando vive y se prueba en el motor. El anfitrión ya autorizó la acción que originó el hecho, así que no se reevalúa el cargo (se registra quién la originó). Un hecho que todavía no dispara trabajo devuelve `null` y el anfitrión muestra "Análisis de IA no disponible".
+- **Worker:** la misma imagen de `apps/api` con `AI_WORKER=true`, que arranca un contexto Nest sin HTTP. En Compose es un servicio `ai-worker` en el perfil `dev`. Late cada 15 s en `ai.worker_heartbeat`; la API expone la salud (cola, en curso, workers vivos) y el lab avisa "no hay worker" en vez de dejar una ejecución "en cola" sin explicación. Concurrencia desde `ai.config` (`runs.workerConcurrency`).
 
 ```mermaid
 sequenceDiagram
@@ -165,7 +169,7 @@ El borrador 5C sigue el mismo camino, pero lo dispara el botón (`RequestDraft5C
   - Requiere relajar la política de organización `iam.managed.disableServiceAccountApiKeyCreation` en el proyecto de prueba (lo hace el coordinador en GCP).
   - Por qué API key y no ADC en esta etapa: el equipo trabaja con cuentas de prueba y el servidor es un VPS fuera de GCP. ADC ahí implicaría distribuir un JSON de service account, que es peor. El cambio a ADC o Workload Identity Federation queda a una variable de distancia.
 - **Mistral (OCR):** `@mistralai/mistralai` directo contra la API de Mistral, con `MISTRAL_API_KEY`.
-  - Se **fija la versión** del modelo en configuración, no `mistral-ocr-latest`: la reproducibilidad y la deduplicación dependen de la versión.
+  - Se **fija la versión** del modelo en configuración: `mistral-ocr-4-1` (OCR 4.1, GA 2026-08-31). Nunca `mistral-ocr-latest` ni `mistral-ocr-4`: son alias que cambian de modelo sin aviso (hoy apuntan a 4.1; la 4.0 se retiró el 2026-09-30) y la reproducibilidad y la deduplicación dependen de la versión. La configuración rechaza cualquier id `*-latest` al arrancar y el adaptador rechaza además los alias de versión mayor.
   - *Alternativa descartada:* Mistral OCR 25.05 vía Model Garden de Agent Platform. Es una versión anterior, sin confianza por bloque, y hay reportes de error 500 con `document_annotation_format`. Queda como adaptador alternativo posible.
 - **Puertos del motor** (interfaces pequeñas, sin prefijo `I`):
 
@@ -270,7 +274,9 @@ erDiagram
   }
 ```
 
-Además: `ai.result_cache` (clave → run), `ai.query_embedding_cache`, `ai.config` (versionada, con auditoría) y `ai.schema_migrations`.
+Además: `ai.result_cache` (clave → run; también embeddings de consulta), `ai.config` (versionada, con auditoría), `ai.worker_heartbeat` y `ai.schema_migrations`.
+
+Migración `002-run-lifecycle` (sobre 001, que ya estaba aplicada): índice de idempotencia parcial (sin `FAILED`), `ai_run.retry_of`, `document_extraction.pipeline_fingerprint` e `injection_suspected` con clave única `(file_sha256, ocr_model, pipeline_fingerprint, is_lab)`, `outbox.attempts/last_error/dead_at` y `worker_heartbeat`.
 
 - **Resolución de alertas:** la resolución la registra el proceso de crédito (dominio y auditoría old/new), no el motor. `ai_alert` es la copia inmutable de lo que dijo la IA. El dominio guarda la resolución referenciando `ai_alert.id`.
 - **Migraciones propias del esquema `ai`**, en SQL embebido en módulos TS (`apps/api/src/infrastructure/ai/db/migrations/NNN-*.ts`, porque `tsc` no copia `.sql` a `dist`), con un migrador mínimo (advisory lock, checksum sobre la plantilla, guarda de dimensión) y un cliente `pg` propio. No pasan por Prisma. Las semillas de configuración viven en código etiquetadas como seed; `ai.config` guarda solo lo que un administrador cambia. Motivos:
@@ -289,15 +295,19 @@ Además: `ai.result_cache` (clave → run), `ai.query_embedding_cache`, `ai.conf
 
 ### D5. Pipeline de extracción
 
-1. **Validación previa** (sin costo): MIME real por *magic bytes*, tamaño, páginas y cifrado. Si falla, `FAILED` con motivo y sin llamada al proveedor.
-2. **Deduplicación** por `(file_sha256, ocr_model, schema_code, schema_version)`.
+1. **Validación previa** (sin costo): MIME real por *magic bytes*, tamaño, cifrado y páginas contadas con un parser real (`pdf-lib`, puro JS), también en PDFs con *object streams* y xref comprimido (lo común en estados de cuenta). Un PDF cuya estructura no se puede leer se rechaza (`AI_INPUT_CORRUPT`, "vuelve a exportarlo o sube una foto"); nunca se le pide al proveedor un rango de páginas adivinado. Si falla, `FAILED` con motivo y sin llamada al proveedor.
+2. **Deduplicación** por `(file_sha256, ocr_model, pipeline_fingerprint, is_lab)`. La huella es el hash de todo lo que determina el resultado: versión del pipeline (`extract-v2`), esquema y prompt de anotación, tipos de campo, clasificador de imágenes e `image_min_size`. Editar la descripción de un campo invalida la deduplicación sin depender de subir una versión a mano. El laboratorio y producción **nunca** comparten extracciones.
 3. **Llamada a Mistral:** `extract_header`/`extract_footer` activos, confianza por bloque, `image_min_size` para ignorar miniaturas, `table_format` markdown. `document_annotation_format` = esquema JSON del tipo de documento, y `bbox_annotation_format` = clasificador de imágenes (tipo, relevante, descripción). Las anotaciones solo se piden para los tipos que las necesitan.
 4. **Traducción anticorrupción** → `OcrDocument` propio (páginas, bloques con posición y confianza, imágenes clasificadas). Ningún tipo de Mistral sale del adaptador.
-5. **Normalización:** Unicode NFC, unir palabras partidas por guion al final de línea, colapsar espacios, quitar números de página, y un mapa de posición de texto → página y bloque.
-6. **Candidatos:** del `document_annotation` al `OcrCandidate` del dominio (`PENDING`, página, confianza, marca de baja confianza según umbral configurable).
+5. **Normalización:** Unicode NFC, quitar caracteres invisibles y de control de dirección (U+00AD, U+200B–200F, U+202A–202E, U+2060–2064, U+2066–2069, U+FEFF), unir palabras partidas por guion al final de línea, colapsar espacios, quitar números de página, y un mapa de posición de texto → página y bloque.
+   - Los marcadores de imagen se **quitan** del texto. La descripción de una imagen la escribe el modelo de OCR: vive en `images`, se muestra como "descripción del modelo" y nunca sirve como cita de evidencia.
+   - **Señales de inyección al extraer** (fase 3, no solo en la revisión): el detector corre sobre texto, encabezado, pie y descripciones de imágenes de cada página. Las señales quedan en `pages[].injectionSignals`, la extracción en `injectionSuspected` y el evento `DocumentExtractionCompleted` en `injectionSuspected`. Los candidatos ubicados en una página con señales quedan "Revisar". Es aviso, no bloqueo: el texto sigue ahí como dato.
+6. **Candidatos:** del `document_annotation` al `OcrCandidate` del dominio (`PENDING`, página, región `bbox` del bloque, confianza, marca de baja confianza según umbral configurable). Un valor que no aparece en el texto se marca (posible alucinación de la anotación).
    - Montos GTQ con formato es-GT: "Q12,500.00". Se tolera "12.500,00" y se marca para revisión.
    - Fechas en dd/mm/aaaa.
    - DPI/CUI: 13 dígitos, se valida el formato. Nunca se "corrige" el valor, solo se marca.
+7. **Costo:** páginas procesadas × precio; con anotaciones (campos o clasificación de imágenes) se usa la tarifa de páginas anotadas (`prices.ocrAnnotatedUsdPerPage`, US$5/1,000 en OCR 4.1) y sin ellas la de OCR simple (US$4/1,000). Ambos son configuración.
+8. **Límite conocido:** un PDF con contraseña de propietario pero sin contraseña de apertura (común en estados de cuenta bancarios) también trae `/Encrypt` y se rechaza como "PDF protegido". Distinguirlo exige implementar el manejador de seguridad estándar del PDF; se reevalúa con datos del lab.
 
 **Registro de esquemas por tipo** (OCP: agregar un tipo no modifica código existente), versión inicial:
 
@@ -444,7 +454,7 @@ flowchart LR
   G5 --> OUT[Persistir + evento]
 ```
 
-- **Detector de inyección:** patrones en español e inglés dirigidos a una IA ("ignora", "olvida las instrucciones", "eres un", "system prompt", "responde solo", "aprueba este crédito"), texto con muy bajo contraste o diminuto cuando el OCR lo reporta, y bloques repetidos anómalos. Genera una alerta; no bloquea.
+- **Detector de inyección** (`guards/injection-detector.ts`, ya implementado y usado en la extracción): patrones en español e inglés dirigidos a una IA ("ignora las instrucciones", "olvida lo anterior", "eres un asistente", "system prompt", "responde solo", "recomienda aprobar este crédito", "nota para la IA", "asígnale un puntaje"), evaluados sobre una forma canónica (NFKC, sin invisibles ni acentos, minúsculas) para que ancho completo, caracteres de ancho cero o acentos no los evadan; los controles de dirección de texto son señal por sí mismos. Los patrones son configuración (`safety.injectionPatterns`, semilla), validados como expresiones regulares al arrancar, con pruebas de falsos positivos sobre textos normales del expediente ("se aprueba el crédito No. …", "instrucciones de pago"). Genera señal o alerta; no bloquea. Pendiente con datos del lab: texto diminuto o de bajo contraste si el OCR lo reporta, y bloques repetidos anómalos.
 - **Contenido prohibido:** patrones configurables con semilla:
   - puntajes ("\d+/10", "\d+ puntos", "score", "calificación de");
   - bandas ("riesgo alto/medio/bajo");
@@ -453,6 +463,15 @@ flowchart LR
 
   Se evalúan sobre todo el texto libre de la salida.
 - **Verificación de evidencias:** normalización (minúsculas, sin acentos, espacios colapsados), luego coincidencia exacta de subcadena. Si falla, se tolera una coincidencia difusa de ≥ 0.9 en ventana deslizante, porque el OCR introduce ruido. El umbral está en configuración.
+- **Endurecimiento obligatorio al implementar la generación (grupo 7):**
+  - *Delimitadores con nonce:* cada ejecución usa un delimitador aleatorio (`<documents-7f3a…>`), y cualquier aparición del delimitador (o de `</documents`, `</case_data`, `</policy_excerpts`) dentro de los datos se neutraliza antes de armar el prompt. Un documento no puede "cerrar" el bloque de datos.
+  - *Forma canónica antes de detectar y de enviar:* NFKC, sin invisibles ni controles de dirección (el detector ya lo hace; el armado del prompt usa el mismo `stripInvisible`).
+  - *El resumen también se verifica:* el esquema de salida modela el resumen como lista de afirmaciones, cada una con sus evidencias; la afirmación sin evidencia verificada se descarta y se cuenta. Es la defensa contra una paráfrasis de recomendación ("perfil favorable") que ninguna regex atrapa.
+  - *Riesgo residual declarado:* una cita real puede acompañar una afirmación falsa. La UI siempre muestra la cita junto a la afirmación.
+  - *Salida como texto plano:* la UI de revisión muestra la salida del modelo como texto, nunca como markdown ni HTML (una imagen markdown hacia una URL externa filtraría PII rehidratada). La rehidratación de seudónimos ocurre solo al mostrar y nunca vuelve a un prompt.
+  - *Seudonimización ampliada:* además de nombres, CUI, NIT, teléfonos, correos y direcciones del snapshot, patrones de números de cuenta bancaria, NIT con guion (`1234567-8`), teléfonos con `+502` y nombres de terceros en contexto (empleador, referencias, acreedores del buró).
+  - *Textos libres del snapshot* (`purpose`, `hardRuleHits.message`, motivos de excepción) son datos no confiables igual que los documentos: van dentro de los delimitadores.
+  - *Políticas:* la ingesta corre el detector de inyección sobre cada fuente antes de aprobarla, porque las fuentes fijadas van en el prefijo del prompt.
 
 ### D11. Capas de caché y costo
 
@@ -465,6 +484,8 @@ flowchart LR
 | Caché implícito de Gemini | Prefijo [1]–[3] (D9) | ~90 % en tokens de entrada cacheados ($0.075 contra $0.75 por M, precios de sep 2026) |
 | Batch | Ingesta y evaluaciones nocturnas | 50 % |
 
+- **Clave de reutilización de generación (8.1):** `input_sha256` se calcula sobre el snapshot **más** los ids y versión de los chunks recuperados, la versión del corpus fijado, la versión de los patrones de guardas y los parámetros de la tarea (nivel de razonamiento, presupuesto). Así, aprobar una versión nueva del reglamento invalida los resultados anteriores.
+- **Orden para el caché implícito:** los chunks recuperados se ordenan por fuente y ordinal (no por puntaje) para que casos con las mismas políticas compartan más prefijo. El prefijo no se rellena para alcanzar 4,096 tokens: los tokens cacheados también se pagan (al 10 %). El lab mide si `responseJsonSchema` cuenta como parte del prefijo.
 - **Caché explícito: no.** Mantener vivo un prefijo de 20k tokens cuesta unos $0.24 al día (~$7 al mes) y ahorra unos $0.0135 por llamada. Solo compensa con más de ~18 llamadas al día. Además crea recursos, y Google desaconseja las authorization keys para APIs que crean recursos en producción. Se reevalúa con el volumen real medido en `ai_run`.
 - **Precios** como configuración (`ai.config.prices`), con vigencia por fecha. La tabla de Google publicada en sep 2026 duplica los precios de 3.8 Flash el 2027-01-01; hay que verificar la tabla específica de Agent Platform.
 - Alerta mensual de gasto a `SYSTEM_ADMIN`. No bloquea (regla 9: avisar, no bloquear).
@@ -480,7 +501,9 @@ flowchart LR
 
   Solo componentes y tokens de `design-system/`.
 - **API:** `apps/api/src/modules/ai/lab.controller.ts`, protegido por `LabGuard`. Responde 404 si `NODE_ENV=production` o si `AI_LAB_ENABLED` no es `true`; el chequeo es doble, en web (`notFound()`) y en API.
-- **Almacenamiento de lab:** adaptador `FileSystemDocumentSource` en `.lab-storage/` (en `.gitignore`), con purga por retención (`AI_LAB_RETENTION_DAYS`, por defecto 7). Las ejecuciones del lab llevan `is_lab = true` y no aparecen en reportes de costo de producción, aunque sí en un total aparte.
+- **Aislamiento:** el lab es una herramienta interna de pruebas de la rama. Vive en `apps/api/src/modules/ai/lab/` (`LabModule`, controller, guard, retención) y `apps/api/src/infrastructure/ai/lab/` (almacenamiento local y purga), y en `apps/web/app/lab/` + `apps/web/lib/lab-*`. El lab depende del motor; **nada** depende del lab: `AiModule` recibe fuentes de documentos genéricas por prefijo (`documentRoutes`) y solo los composition roots (`app.module.ts`, `worker.ts`) deciden registrarlo. El test de arquitectura lo hace cumplir (regla 5, D14).
+- **Almacenamiento de lab:** adaptador `FileSystemDocumentSource` en `.lab-storage/` (en `.gitignore`). El tipo del archivo se detecta por contenido (nunca el `Content-Type` del navegador); al servirlo, lo que no es PDF/JPEG/PNG sale como `application/octet-stream` adjunto con `CSP: sandbox`. Retención (`AI_LAB_RETENTION_DAYS`, por defecto 7) de archivos **y** de filas `is_lab` de la base (ejecuciones terminadas, extracciones, fuentes, eventos de lab), cada 6 h en la API. Las ejecuciones del lab llevan `is_lab = true` y no aparecen en reportes de costo de producción, aunque sí en un total aparte.
+- **Operación desde el lab:** reintento de ejecuciones fallidas (`POST /lab/ia/runs/:id/retry`), estado de cola y workers (`GET /lab/ia/status`), y el lab nunca muestra extracciones ni ejecuciones de producción.
 - **Snapshots sintéticos de caso:** `packages/ai-engine/eval/cases/*.json`, en el mismo formato que `CaseSnapshot`, más PDFs sintéticos generados por script. Nunca documentos reales.
 - **Actualización de la vista:** el lab consulta el estado de `ai_run` cada 1–2 s. No hace falta SSE en esta etapa.
 - **Evaluación:**
@@ -505,13 +528,15 @@ La API aún no tiene runner de pruebas. Este change agrega Vitest a `apps/api` y
 
 ### D14. Frontera forzada
 
-- **Test de arquitectura propio** (`packages/ai-engine/src/architecture.test.ts` y `apps/api/src/infrastructure/ai/architecture.test.ts`), que corre dentro de `pnpm test`:
+- **Test de arquitectura propio** (`packages/ai-engine/src/architecture/architecture.test.ts`, que recorre `packages/` y `apps/`), que corre dentro de `pnpm test`:
   - Recorre los `.ts` y extrae los especificadores de `import`/`export … from`/`require()` con un escáner léxico que ignora comentarios y strings.
   - Aplica las reglas:
     1. `packages/ai-engine` no importa `apps/*`, `@prisma/*`, `@nestjs/*`, `next`, `react`, `@google/genai`, `@mistralai/*`, `pg`, `pg-boss`, `node:fs`, `node:net`, `node:http(s)`.
     2. Solo `apps/api/src/infrastructure/ai/**` importa los SDKs.
     3. Nadie fuera del paquete importa `@crece/ai-engine/src/**` ni `packages/ai-engine/src/**`.
     4. `packages/domain` no importa `@crece/ai-engine`.
+    5. Nada de producción importa el laboratorio: solo sus carpetas, los composition roots (`app.module.ts`, `worker.ts`) y los tests.
+    6. El código del motor no importa sus fakes (`src/testing/`), que solo usan las pruebas y el export `./testing`.
   - *Por qué no `dependency-cruiser`:* TypeScript 7.0.2 se publica solo como binario nativo, sin API de compilador en JavaScript (`lib/typescript.js`). `dependency-cruiser` necesitaría ese API o `@swc/core` (otra dependencia nativa) para analizar TS. Un escáner de ~80 líneas con sus propios tests no agrega dependencias y es suficiente para reglas de import.
 - **`exports`** del paquete restringidos a `.` y `./testing`.
 
@@ -540,8 +565,9 @@ Versiones verificadas en npm (28 sep 2026):
 | `@google/genai` | 2.24.0 | ESM + CJS, Node ≥ 20 |
 | `zod` | 4.6.5 | ESM + CJS, con `z.toJSONSchema()` nativo |
 | `markdown-it` | 15.0.2 | CJS |
+| `pdf-lib` | 1.17.1 | CJS + ESM, JS puro (conteo de páginas en el preflight) |
 
-- **`@crece/ai-engine`** solo usa `zod` y `markdown-it` (más `@crece/shared`), así que compila a CommonJS como los otros paquetes, sin cambios de herramienta.
+- **`@crece/ai-engine`** solo usa `zod`, `markdown-it` y `pdf-lib` (más `@crece/shared`), así que compila a CommonJS como los otros paquetes, sin cambios de herramienta.
 - **`apps/api`** sigue compilando a CommonJS:
   - Los SDK solo ESM se cargan con `require(esm)`, soportado sin flags desde Node 22.12 (el runtime es Node 24 local y en Docker).
   - `engines.node` pasa a `>=22.12`.
@@ -615,6 +641,9 @@ packages/ai-engine/src/
 | `AI_OUTPUT_FORBIDDEN` | Contenido prohibido |
 | `AI_REINDEX_REQUIRED` | Dimensión o modelo no coinciden con el índice |
 | `AI_NOT_FOUND` | Recurso inexistente |
+| `AI_TASK_UNAVAILABLE` | Tarea que el motor aún no implementa (no reintentable, HTTP 501) |
+| `AI_RUN_INTERRUPTED` | Ejecución que no terminó en el plazo (worker caído): reintentable, HTTP 503 |
+| `AI_INTERNAL` | Error interno inesperado (no se atribuye al proveedor), HTTP 500 |
 
 El filtro HTTP existente (`DomainExceptionFilter`) los mapea; `AI_DISABLED` y `AI_NOT_FOUND` se agregan como 404 y 503.
 
@@ -690,7 +719,7 @@ El filtro HTTP existente (`DomainExceptionFilter`) los mapea; `AI_DISABLED` y `A
 1. **Contratos primero** (grupo 1): paquete, contratos, fakes y reglas de arquitectura. PR pequeño a `main` con el cambio de `AiAlert` a evidencias más sus tests, para que las fases 1–3 programen contra el contrato.
 2. **Infraestructura** (grupo 2): imagen de base con pgvector y migraciones del esquema `ai`.
    - Rollback: el esquema `ai` es independiente; `DROP SCHEMA ai CASCADE` en dev no afecta al núcleo.
-   - Cambiar la imagen de base no pierde datos si se reutiliza el volumen `crece_pg_data`; hay que verificar la compatibilidad de la versión mayor (misma PG 18).
+   - La imagen nueva usa un volumen nuevo (`crece_pg18_data`, D21) porque cambia la libc; el volumen anterior no se toca. En dev los datos son desechables.
 3. **Por etapas** detrás de `AI_ENGINE_ENABLED`: OCR → chunking → embeddings y búsqueda → generación → integración. Cada etapa se verifica en el lab antes de la siguiente.
 4. **Integración** con las fases 1–3: suscripción a `DocumentUploaded` y `OperationSubmittedForReview`, y el adaptador de `CaseSnapshotSource` hecho por el equipo de operaciones.
 5. **Producción:** proyecto GCP y cuenta Mistral nuevos (no los de prueba), key nueva restringida a la IP de producción, lab deshabilitado, corpus real aprobado por `SYSTEM_ADMIN`, y la batería red-team en verde con el modelo y prompt activos.
@@ -699,6 +728,10 @@ El filtro HTTP existente (`DomainExceptionFilter`) los mapea; `AI_DISABLED` y `A
 ## Open Questions
 
 - Región de Agent Platform donde 3.8 Flash y Embedding 2 estén disponibles con menor latencia desde Guatemala (`us-central1` como default provisional). Se resuelve al crear el proyecto de prueba. Es configuración, no cambia el diseño.
-- Tabla de precios específica de Agent Platform para 3.8 Flash y Embedding 2 (los precios son configuración).
+- Tabla de precios específica de Agent Platform para 3.8 Flash y Embedding 2 (los precios son configuración). Mistral OCR 4.1 queda sembrado con la tabla pública de sep 2026 (US$4 / US$5 por 1,000 páginas).
 - Formato exacto del prefijo de documento de Gemini Embedding 2. Lo fija el test de contrato del adaptador.
 - Retención de `raw_response` en producción (propuesta: 30 días) y del lab (7 días). Se ajusta en configuración.
+- Retención y acceso del texto normalizado de extracciones en producción (`document_extraction.pages` contiene PII del expediente y hoy es permanente): propuesta, mismo ciclo de vida que el expediente en el núcleo. Decisión de la cooperativa.
+- Residencia de datos y consentimiento: los documentos van a Mistral (UE) y a Google. Revisar el aviso de privacidad para asociados y las opciones de retención cero de cada proveedor antes de producción. Decisión de la cooperativa, no de código.
+- Fotos HEIC de iPhone: hoy se rechazan como formato no admitido. Opciones: convertir en el anfitrión al subir (fase 3) o aceptar HEIC si el proveedor lo admite. Se decide con el equipo de documentos.
+- Autenticación del lab: es una herramienta interna de pruebas de la rama y no tiene login; si se despliega en un servidor compartido, restringirlo por red o exigir `SYSTEM_ADMIN` cuando exista autenticación.

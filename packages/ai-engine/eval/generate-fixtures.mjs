@@ -8,13 +8,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import testing from "../dist/testing/index.js";
 
-const { LAB_FIXTURES, labFixtureBytes } = testing;
+const { EXTRACTION_FIXTURES, extractionFixtureBytes } = testing;
 const out = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 mkdirSync(out, { recursive: true });
 
-for (const fixture of LAB_FIXTURES) {
-  writeFileSync(join(out, fixture.fileName), labFixtureBytes(fixture));
+for (const fixture of EXTRACTION_FIXTURES) {
+  writeFileSync(join(out, fixture.fileName), extractionFixtureBytes(fixture));
 }
-const golden = LAB_FIXTURES.map(({ fileName, documentType, description, expected }) => ({ fileName, documentType, description, expected }));
+const golden = EXTRACTION_FIXTURES.map(({ fileName, documentType, description, expected }) => ({ fileName, documentType, description, expected }));
 writeFileSync(join(out, "extraction-golden.json"), JSON.stringify(golden, null, 2) + "\n");
-console.log(`${LAB_FIXTURES.length} documentos sintéticos + extraction-golden.json en ${out}`);
+console.log(`${EXTRACTION_FIXTURES.length} documentos sintéticos + extraction-golden.json en ${out}`);

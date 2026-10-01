@@ -1,6 +1,6 @@
 import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { loadAiEnv } from "../../infrastructure/ai/ai-env";
+import { loadAiEnv } from "../../../infrastructure/ai/ai-env";
 import { LabGuard } from "./lab.guard";
 
 const keys = { MISTRAL_API_KEY: "x", AI_GOOGLE_API_KEY: "y", DATABASE_URL: "postgresql://x" };

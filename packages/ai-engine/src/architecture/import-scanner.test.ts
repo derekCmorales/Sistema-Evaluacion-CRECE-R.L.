@@ -77,4 +77,32 @@ describe("checkBoundaries", () => {
     const v = checkBoundaries([{ path: "packages/ai-engine/src/a.test.ts", source: `import { readFileSync } from "node:fs";` }]);
     expect(v).toEqual([]);
   });
+
+  it("nada de producción depende del laboratorio; el lab y los composition roots sí pueden", () => {
+    const v = checkBoundaries([
+      { path: "apps/api/src/modules/operations/x.ts", source: `import { LabModule } from "../ai/lab/lab.module";` },
+      { path: "apps/api/src/modules/ai/ai-runtime.ts", source: `import { purgeLabData } from "../../infrastructure/ai/lab/pg-lab-purge";` },
+      { path: "apps/web/app/revision/page.tsx", source: `import { labApi } from "../../lib/lab-api";` },
+      { path: "apps/api/src/app.module.ts", source: `import { LabModule } from "./modules/ai/lab/lab.module";` },
+      { path: "apps/api/src/worker.ts", source: `import { createLabContext } from "./modules/ai/lab/lab-context";` },
+      { path: "apps/api/src/modules/ai/lab/lab.controller.ts", source: `import { AI_ENGINE } from "../ai.tokens";` },
+      { path: "apps/web/app/lab/ia/page.tsx", source: `import { labApi } from "../../../lib/lab-api";` },
+      { path: "apps/api/src/modules/ai/x.integration.test.ts", source: `import { createLabContext } from "./lab/lab-context";` },
+      { path: "apps/api/src/modules/ai/labels.ts", source: `import { a } from "./labels-es";` },
+    ]);
+    expect(v.map((x) => [x.rule, x.path])).toEqual([
+      ["nada-depende-del-lab", "apps/api/src/modules/operations/x.ts"],
+      ["nada-depende-del-lab", "apps/api/src/modules/ai/ai-runtime.ts"],
+      ["nada-depende-del-lab", "apps/web/app/revision/page.tsx"],
+    ]);
+  });
+
+  it("el código del motor no importa sus fakes", () => {
+    const v = checkBoundaries([
+      { path: "packages/ai-engine/src/use-cases/x.ts", source: `import { FakeHasher } from "../testing";` },
+      { path: "packages/ai-engine/src/testing/index.ts", source: `export * from "./fixtures";` },
+      { path: "packages/ai-engine/src/use-cases/x.test.ts", source: `import { FakeHasher } from "../testing";` },
+    ]);
+    expect(v.map((x) => [x.rule, x.path])).toEqual([["motor-sin-fakes", "packages/ai-engine/src/use-cases/x.ts"]]);
+  });
 });

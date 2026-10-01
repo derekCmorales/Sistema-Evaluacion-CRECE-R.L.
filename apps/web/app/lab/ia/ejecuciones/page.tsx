@@ -11,15 +11,24 @@ import {
   formatUsd,
   labApi,
   type LabRun,
+  type LabStatus,
 } from "../../../../lib/lab-api";
 
 export default function RunsPage() {
   const { Card, DataTable, Badge, Alert, EmptyState, Button } = useCrece();
   const router = useRouter();
   const [runs, setRuns] = useState<LabRun[] | null>(null);
+  const [status, setStatus] = useState<LabStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = () => labApi.runs().then(setRuns, (e: Error) => setError(e.message));
+  const load = () =>
+    Promise.all([labApi.runs(), labApi.status()]).then(
+      ([loadedRuns, loadedStatus]) => {
+        setRuns(loadedRuns);
+        setStatus(loadedStatus);
+      },
+      (e: Error) => setError(e.message),
+    );
   useEffect(() => {
     void load();
   }, []);
@@ -45,7 +54,15 @@ export default function RunsPage() {
     >
       <p className="body-sm" style={{ color: "var(--text-secondary)", marginBottom: "var(--space-4)" }}>
         Costo estimado de estas ejecuciones: {formatUsd(total)}. No cuenta en los reportes de producción.
+        {status ? ` · Workers activos: ${status.workersOnline} · En cola: ${status.queued} · Procesando: ${status.running}` : ""}
       </p>
+      {status && status.workersOnline === 0 && status.queued > 0 && (
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <Alert tone="warning" title="Hay ejecuciones en cola y ningún worker corriendo">
+            Arranca el worker con «pnpm --filter @crece/api start:worker».
+          </Alert>
+        </div>
+      )}
       <DataTable
         columns={[
           { key: "createdAt", label: "Fecha", render: (r: LabRun) => new Date(r.createdAt).toLocaleString("es-GT") },
@@ -55,6 +72,11 @@ export default function RunsPage() {
           { key: "latencyMs", label: "Tiempo", numeric: true, render: (r: LabRun) => formatSeconds(r.latencyMs) },
           { key: "costEstimateUsd", label: "Costo", numeric: true, render: (r: LabRun) => formatUsd(r.costEstimateUsd) },
           { key: "errorCode", label: "Error", render: (r: LabRun) => r.errorCode ?? "" },
+          {
+            key: "output",
+            label: "Señales",
+            render: (r: LabRun) => (r.output?.injectionSuspected ? <Badge tone="warning">Inyección</Badge> : r.retryOf ? "Reintento" : ""),
+          },
         ]}
         rows={runs ?? []}
         onRowClick={(r: LabRun) => r.task === "EXTRACT" && router.push(`/lab/ia/extraccion?run=${r.id}`)}

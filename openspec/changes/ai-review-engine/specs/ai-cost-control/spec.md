@@ -5,7 +5,7 @@ Keeps AI spending predictable for the cooperative: never pay twice for the same 
 ## ADDED Requirements
 
 ### Requirement: Result reuse
-A generation request whose input hash, task, model id and prompt version match a successful previous run SHALL return that result without calling the provider. A user may force regeneration, and the forced run records who requested it.
+A generation request whose input hash, task, model id and prompt version match a successful previous run SHALL return that result without calling the provider. The input hash SHALL cover the case snapshot, the retrieved chunk ids and corpus version, the guard pattern version and the task parameters, so that approving a new policy version invalidates previous results. A user may force regeneration, and the forced run records who requested it.
 
 #### Scenario: 5C requested twice without changes
 - **WHEN** the advisor requests the 5C draft again with an unchanged case
@@ -47,7 +47,7 @@ Provider calls SHALL respect configured concurrency limits and back off on rate-
 - **THEN** the call is retried after backoff, and the run is not marked failed until retries are exhausted
 
 ### Requirement: Cost visibility and budget warning
-The system SHALL report token usage and estimated cost per run, per operation and per calendar month. The provider prices are configuration. When monthly spend crosses a configured threshold, `SYSTEM_ADMIN` is warned.
+The system SHALL report token usage and estimated cost per run, per operation and per calendar month. The provider prices are configuration, including distinct OCR prices for plain and annotated pages. When monthly spend crosses a configured threshold, `SYSTEM_ADMIN` is warned.
 
 #### Scenario: Monthly threshold crossed
 - **WHEN** estimated spend for the month exceeds the warning threshold

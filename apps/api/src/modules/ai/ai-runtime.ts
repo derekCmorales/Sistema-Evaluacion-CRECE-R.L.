@@ -1,5 +1,4 @@
 import { hostname } from "node:os";
-import type { Pool } from "pg";
 import {
   createAiEngine,
   createDisabledAiEngine,
@@ -16,7 +15,7 @@ import { PgExtractionStore } from "../../infrastructure/ai/db/pg-extraction-stor
 import { PgOutboxRelay } from "../../infrastructure/ai/db/pg-outbox-relay";
 import { PgRunStore } from "../../infrastructure/ai/db/pg-run-store";
 import { PgWorkerHeartbeat } from "../../infrastructure/ai/db/pg-worker-heartbeat";
-import { createAiPool } from "../../infrastructure/ai/db/pool";
+import { createAiPool, type AiPool } from "../../infrastructure/ai/db/pool";
 import { JsonEngineLogger } from "../../infrastructure/ai/logging/json-engine-logger";
 import { MistralOcrProvider } from "../../infrastructure/ai/mistral/mistral-ocr-provider";
 import { PgBossJobQueue } from "../../infrastructure/ai/queue/pg-boss-job-queue";
@@ -50,7 +49,7 @@ export type AiRuntime = {
   events: AiEventBus;
   config: AiEngineConfig | null;
   /** Conexión al esquema `ai` (null con el motor apagado). */
-  pool: Pool | null;
+  pool: AiPool | null;
   health(): Promise<AiHealth>;
   /** Proceso worker: consume la cola, late y hace el mantenimiento periódico. */
   startWorker(): Promise<void>;

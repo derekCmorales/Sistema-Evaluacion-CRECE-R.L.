@@ -15,6 +15,10 @@ The knowledge base SHALL contain only cooperative policy sources. Only `SYSTEM_A
 - **WHEN** a user without `SYSTEM_ADMIN` sends `IngestKnowledgeSource`
 - **THEN** the command is rejected with a permission error
 
+#### Scenario: Policy source with instruction-like text
+- **WHEN** an ingested source contains text addressed to an AI
+- **THEN** the lab and the approval screen show the injection signals before the source can be approved
+
 ### Requirement: Versioned sources
 Approving a new version of a source SHALL deactivate the previous version's chunks for retrieval without deleting them. Chunks cited by past runs MUST remain resolvable.
 

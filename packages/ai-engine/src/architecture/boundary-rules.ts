@@ -33,6 +33,24 @@ function matches(specifier: string, target: string): boolean {
 }
 
 const isTest = (path: string) => /\.test\.tsx?$/.test(path);
+
+/**
+ * El laboratorio es una herramienta interna de pruebas: puede depender de todo, pero nada de
+ * producción depende de él. Solo sus carpetas y los composition roots (que deciden si se registra)
+ * lo importan.
+ */
+const LAB_OWNERS = [
+  "apps/api/src/modules/ai/lab/",
+  "apps/api/src/infrastructure/ai/lab/",
+  "apps/web/app/lab/",
+  "apps/web/lib/lab-",
+];
+const COMPOSITION_ROOTS = new Set(["apps/api/src/app.module.ts", "apps/api/src/worker.ts"]);
+const ownsLab = (path: string) => LAB_OWNERS.some((prefix) => path.startsWith(prefix)) || COMPOSITION_ROOTS.has(path);
+/** Import relativo hacia una carpeta `lab/` o un archivo `lab-*` / `lab.*`. */
+const pointsToLab = (specifier: string) =>
+  specifier.startsWith(".") && /(^|\/)(lab(\/|$)|lab[-.][\w.-]*$)/.test(specifier);
+const inEngineTesting = (path: string) => path.startsWith("packages/ai-engine/src/testing/");
 const inEngine = (path: string) => path.startsWith("packages/ai-engine/");
 const inEngineSrc = (path: string) => path.startsWith("packages/ai-engine/src/");
 const inAiInfrastructure = (path: string) => path.startsWith("apps/api/src/infrastructure/ai/");
@@ -62,6 +80,14 @@ export function checkBoundaries(files: SourceFile[]): Violation[] {
         if (deepPackage || deepPath) {
           violations.push({ rule: "sin-imports-internos", path: file.path, specifier });
         }
+      }
+      // 5. Nada de producción depende del laboratorio.
+      if (!isTest(file.path) && !ownsLab(file.path) && pointsToLab(specifier)) {
+        violations.push({ rule: "nada-depende-del-lab", path: file.path, specifier });
+      }
+      // 6. El código del motor no usa sus fakes (solo las pruebas y el export ./testing).
+      if (inEngineSrc(file.path) && !isTest(file.path) && !inEngineTesting(file.path) && /(^|\/)testing(\/|$)/.test(specifier)) {
+        violations.push({ rule: "motor-sin-fakes", path: file.path, specifier });
       }
       // 4. El dominio y shared no dependen del motor.
       if (
