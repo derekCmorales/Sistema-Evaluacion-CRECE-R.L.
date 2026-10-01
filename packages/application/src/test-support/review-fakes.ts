@@ -1,5 +1,17 @@
-import { toUserId, type Actor, type OperationSubmittedForReview } from "@crece/shared";
-import type { DecisionLog, DecisionLogEntry, ReviewFactsPublisher } from "@crece/domain";
+import {
+  DEFAULT_AUTHORIZATION_POLICY,
+  toUserId,
+  type Actor,
+  type Office,
+  type OperationSubmittedForReview,
+  type UserId,
+} from "@crece/shared";
+import {
+  DEFAULT_DECISION_FACTORS,
+  type DecisionLog,
+  type DecisionLogEntry,
+  type ReviewFactsPublisher,
+} from "@crece/domain";
 import type { AuthorizationDeps, ReviewDeps } from "../review-deps";
 import { fakeCaptureDeps } from "./capture-fakes";
 
@@ -20,8 +32,21 @@ export function fakeReviewDeps(options: { config?: Record<string, unknown>; fail
   return { ...base, deps, facts };
 }
 
-export function fakeAuthorizationDeps(config: Record<string, unknown> = {}) {
-  const base = fakeCaptureDeps(config);
+/** Firmantes sintéticos de la fase 7. El delegado también es del Consejo: cuenta una sola vez. */
+export const delegatedAuthorizer: Actor = { userId: toUserId("user-delegado"), offices: ["DELEGATED_AUTHORIZER", "COUNCIL_MEMBER"] };
+export const councilMemberB: Actor = { userId: toUserId("user-consejo-b"), offices: ["COUNCIL_MEMBER"] };
+export const councilMemberC: Actor = { userId: toUserId("user-consejo-c"), offices: ["COUNCIL_MEMBER"] };
+
+const SYNTHETIC_NAMES: Record<string, string> = {
+  "user-mario": "Jefatura de prueba",
+  "user-julio": "Consejo A de prueba",
+  "user-delegado": "Delegado de prueba",
+  "user-consejo-b": "Consejo B de prueba",
+  "user-consejo-c": "Consejo C de prueba",
+};
+
+export function fakeAuthorizationDeps(options: { config?: Record<string, unknown>; councilMembers?: number } = {}) {
+  const base = fakeCaptureDeps(options.config);
   const entries: DecisionLogEntry[] = [];
   const decisions: DecisionLog = {
     append: async (entry) => {
@@ -31,10 +56,18 @@ export function fakeAuthorizationDeps(config: Record<string, unknown> = {}) {
     },
     findByOperation: async (operationId) => entries.filter((e) => e.operationId === operationId),
   };
-  const deps: AuthorizationDeps = { ...base.deps, decisions };
+  const deps: AuthorizationDeps = {
+    ...base.deps,
+    decisions,
+    policy: { getAuthorizationPolicy: async () => DEFAULT_AUTHORIZATION_POLICY },
+    directory: {
+      displayName: async (userId: UserId) => SYNTHETIC_NAMES[userId] ?? userId,
+      countByOffice: async (office: Office) => (office === "COUNCIL_MEMBER" ? (options.councilMembers ?? 3) : 1),
+    },
+    factors: {
+      findActive: async () =>
+        DEFAULT_DECISION_FACTORS.filter((f) => f.active).map((f) => ({ ...f, id: f.code })),
+    },
+  };
   return { ...base, deps, decisions: entries };
 }
-
-/** Firmantes sintéticos de la fase 7. Iván tiene dos cargos: cuenta una sola vez por operación. */
-export const delegatedAuthorizer: Actor = { userId: toUserId("user-ivan"), offices: ["DELEGATED_AUTHORIZER", "COUNCIL_MEMBER"] };
-export const secondCouncilMember: Actor = { userId: toUserId("user-alejandro"), offices: ["COUNCIL_MEMBER"] };

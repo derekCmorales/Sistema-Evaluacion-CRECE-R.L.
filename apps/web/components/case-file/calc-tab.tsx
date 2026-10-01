@@ -5,7 +5,7 @@ import type { CasePanelProps } from "./use-case-action";
 
 /**
  * Fase 4 · Cálculo y reglas (C-03, C-09).
- * Dueño: rtdash (tareas R6). Esqueleto del PR 0: reemplaza este contenido, no cambies la firma.
+ * Dueño: Josué (tareas R6). Esqueleto del PR 0: reemplaza este contenido, no cambies la firma.
  */
 export function CalcTab(_props: CasePanelProps) {
   const { EmptyState } = useCrece();

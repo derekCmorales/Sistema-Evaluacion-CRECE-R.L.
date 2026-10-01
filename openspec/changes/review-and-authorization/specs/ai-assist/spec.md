@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Alert resolution before signing
-While an operation is `UNDER_REVIEW`, a person with `operation:review-alerts` SHALL resolve each `AiAlert` as `CONFIRMED` or `DISMISSED` with a reason of at least `justification.minLength` characters, logged as `AI_ALERT_RESOLVED`. A resolved alert MUST NOT be resolved again.
+While an operation is `UNDER_REVIEW`, a person with `operation:review-alerts` SHALL resolve each `AiAlert` (by its `id`) as `CONFIRMED` or `DISMISSED` with a reason of at least `justification.minLength` characters, logged as `AI_ALERT_RESOLVED`. A resolved alert MUST NOT be resolved again. Each alert carries typed `evidence` (`DOCUMENT`, `POLICY` or `CALC`).
 
 #### Scenario: Dismiss without reason
 - **WHEN** the advisor dismisses an alert with an empty reason

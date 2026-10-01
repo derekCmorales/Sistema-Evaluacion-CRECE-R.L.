@@ -1,15 +1,18 @@
 import { randomUUID } from "node:crypto";
-import { Global, Module } from "@nestjs/common";
+import { Global, Logger, Module } from "@nestjs/common";
 import type { AuthorizationDeps, CaptureDeps, ReviewDeps } from "@crece/application";
 import {
   InMemoryAuditLog,
+  InMemoryDecisionFactorRepository,
   InMemoryDecisionLog,
   InMemoryReviewFactsPublisher,
+  InMemoryUserDirectory,
   InMemoryOperationRepository,
   InMemoryPersonRepository,
   SeedConfigRepository,
 } from "../../infrastructure/persistence/in-memory-repositories";
 import { seedDemoData } from "../../infrastructure/persistence/demo-seed";
+import { DEV_DIRECTORY_USERS } from "../../infrastructure/persistence/dev-users";
 import { AUTHORIZATION_DEPS, CAPTURE_DEPS, REVIEW_DEPS, REVIEW_FACTS } from "./capture.tokens";
 
 export function createCaptureDeps(): CaptureDeps {
@@ -40,7 +43,15 @@ export function createCaptureDeps(): CaptureDeps {
         return deps;
       },
     },
-    { provide: REVIEW_FACTS, useFactory: () => new InMemoryReviewFactsPublisher() },
+    {
+      provide: REVIEW_FACTS,
+      useFactory: () => {
+        const logger = new Logger("ReviewFacts");
+        return new InMemoryReviewFactsPublisher((error, fact) =>
+          logger.warn(`Un suscriptor falló con ${fact.type} de ${fact.operationId}: ${String(error)}`),
+        );
+      },
+    },
     {
       provide: REVIEW_DEPS,
       inject: [CAPTURE_DEPS, REVIEW_FACTS],
@@ -49,7 +60,13 @@ export function createCaptureDeps(): CaptureDeps {
     {
       provide: AUTHORIZATION_DEPS,
       inject: [CAPTURE_DEPS],
-      useFactory: (deps: CaptureDeps): AuthorizationDeps => ({ ...deps, decisions: new InMemoryDecisionLog() }),
+      useFactory: (deps: CaptureDeps): AuthorizationDeps => ({
+        ...deps,
+        decisions: new InMemoryDecisionLog(),
+        policy: new SeedConfigRepository(),
+        directory: new InMemoryUserDirectory(DEV_DIRECTORY_USERS),
+        factors: new InMemoryDecisionFactorRepository(),
+      }),
     },
   ],
   exports: [CAPTURE_DEPS, REVIEW_DEPS, AUTHORIZATION_DEPS, REVIEW_FACTS],

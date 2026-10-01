@@ -25,6 +25,18 @@ export const DEV_USERS: DevUser[] = [
     offices: ["DELEGATED_AUTHORIZER", "COUNCIL_MEMBER"],
   },
   {
+    id: "demo-consejo-2",
+    name: "Consejo 2 (demo)",
+    description: "Miembro del Consejo: vota desde el umbral",
+    offices: ["COUNCIL_MEMBER"],
+  },
+  {
+    id: "demo-consejo-3",
+    name: "Consejo 3 (demo)",
+    description: "Miembro del Consejo: vota desde el umbral",
+    offices: ["COUNCIL_MEMBER"],
+  },
+  {
     id: "demo-vigilancia",
     name: "Vigilancia (demo)",
     description: "Solo lectura",

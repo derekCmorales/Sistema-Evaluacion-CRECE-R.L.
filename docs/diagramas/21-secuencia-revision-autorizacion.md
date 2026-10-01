@@ -33,9 +33,9 @@ sequenceDiagram
   App->>Dom: assertReadyForReview (armado vigente, BLOCK con excepción, 5C completo)
   App->>Log: OPERATION_READY_FOR_REVIEW
   Web->>API: POST /operations/:id/submit
-  App->>Dom: assertTransition(READY_FOR_REVIEW → UNDER_REVIEW)
+  App->>Dom: assertTransition(READY_FOR_REVIEW → UNDER_REVIEW), ronda nueva (verdicts vacío)
   App->>Log: OPERATION_SUBMITTED
-  App-)Facts: OperationSubmittedForReview
+  App-)Facts: OperationSubmittedForReview { operationId, submittedBy, occurredAt }
   Note right of Facts: si falla, el envío ya quedó hecho
 
   Note over Asesor,Log: Fase 6 — la IA asiste (Derek)
@@ -56,9 +56,9 @@ sequenceDiagram
   Web->>API: GET /approvals/inbox
   Firmante->>Web: veredicto + factores + motivo (+ cambios)
   Web->>API: POST /operations/:id/verdicts
-  App->>Dom: resolveRoute, officeToExercise, una persona una vez, originador, assertCanApprove
+  App->>Dom: resolveRoute, officeToExercise, una persona una vez, originador, factores activos, assertCanApprove
   opt APPROVE_WITH_CHANGES
-    App->>Dom: calculateCreditMetrics con monto o plazo nuevo
+    App->>Dom: calculateCreditMetrics con el menor monto y plazo propuestos (la banda no cambia)
   end
   App->>Log: VERDICT_CAST (DecisionLog, cargo ejercido)
   alt la ruta se cierra

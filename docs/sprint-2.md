@@ -27,8 +27,8 @@
 
 **Demo del viernes 16**, con datos sintéticos:
 
-- **Caso A, firma dual.** Ferretería, Q40,000 a 24 meses. La cuota supera el 35 % del ingreso, la regla bloquea y se justifica. Luego dictamen y envío, una alerta de IA descartada con motivo, firma de la jefatura y del autorizador delegado: queda aprobada.
-- **Caso B, Consejo.** Tractor, Q150,000 a 60 meses. Ruta de quórum del Consejo (semilla 3 de 3), con un voto «Aprobar con cambios» a Q130,000 que recalcula la cuota. El acta sale «en calidad de».
+- **Caso A, firma dual** (usuarios `demo-jefatura` y `demo-delegado`). Ferretería, Q40,000 a 24 meses. La cuota supera el 35 % del ingreso, la regla bloquea y se justifica. Luego dictamen y envío, una alerta de IA descartada con motivo, firma de la jefatura y del autorizador delegado: queda aprobada.
+- **Caso B, Consejo** (usuarios `demo-delegado`, `demo-consejo-2` y `demo-consejo-3`). Tractor, Q150,000 a 60 meses. Ruta de quórum del Consejo (semilla 3 de 3), con un voto «Aprobar con cambios» a Q130,000 que recalcula la cuota. El acta sale «en calidad de».
 - **También debe fallar:**
   - votar dos veces;
   - que quien originó firme como delegado o vote como Consejo;
@@ -40,17 +40,19 @@
 
 | Carril | Ramas (una por PR) | Escribe en | Solo lee |
 |--------|--------------------|------------|----------|
-| **Derek · PR 0** (hecho) | `feat/s2-contracts` | `packages/shared/src/index.ts`, `packages/domain/src/ports.ts`, `packages/application/src/rbac.ts`, `review-deps.ts`, `apps/api/src/modules/capture/*`, `in-memory-repositories.ts`, `apps/web/app/(app)/operations/[id]/page.tsx`, `openspec/`, `docs/`, `AGENTS.md` | — |
-| **Josué · fases 4–5** | `feat/s2-review-domain`, `feat/s2-review-api`, `feat/s2-review-ui` | `domain/hard-rule-exception.ts`, `domain/review-readiness.ts`, `application/review-submission.ts`, `application/case-file.ts` (solo R2), `api/modules/operations/review.controller.ts`, `web/components/case-file/calc-tab.tsx`, `exception-dialog.tsx`, `opinion-tab.tsx`, `submit-dialog.tsx` | `case-assembly.ts`, `calc-engine.ts`, `hard-rules-engine.ts` |
-| **Benjamin · fase 7** | `feat/s2-authorization-domain`, `feat/s2-authorization-api`, `feat/s2-authorization-ui` | `domain/verdict-casting.ts`, `domain/minutes.ts`, `application/authorization.ts`, `api/modules/approvals/*`, `web/app/(app)/approvals/*`, `web/app/(app)/operations/[id]/vote/*`, `.../minutes/*`, `web/components/case-file/decision-tab.tsx` | `verdict-policy.ts`, `decision-factors.ts`, `calc-engine.ts` |
-| **Derek · fase 6** | `feat/s2-ai-review-domain`, `feat/s2-ai-review-ui` | `domain/ai-alerts.ts`, `application/ai-review.ts`, `api/modules/ai/*`, `web/components/case-file/ai-review-tab.tsx` | `review-submission.ts` |
+| **Derek · PR 0** (hecho) y contrato | `feat/s2-contracts` | `packages/shared/src/index.ts`, `packages/domain/src/ports.ts`, `entities.ts`, `verdict-policy.ts`, `packages/application/src/rbac.ts`, `review-deps.ts`, `test-support/review-fakes.ts`, `apps/api/src/app.module.ts`, `apps/api/src/modules/capture/*`, `operations.module.ts`, `in-memory-repositories.ts`, `dev-users.ts`, `apps/web/app/(app)/operations/[id]/page.tsx`, `apps/web/components/app-frame.tsx`, `apps/web/lib/session.tsx`, `apps/web/lib/view.ts`, `openspec/`, `docs/`, `AGENTS.md` | — |
+| **Josué · fases 4–5** | `feat/s2-review-domain`, `feat/s2-review-api`, `feat/s2-review-ui` | `domain/hard-rule-exception.ts`, `domain/review-readiness.ts`, `application/review-submission.ts`, `application/case-file.ts` (solo `recalculate`, R2), `api/modules/operations/review.controller.ts` (ya registrado), `web/components/case-file/calc-tab.tsx`, `exception-dialog.tsx`, `opinion-tab.tsx`, `submit-dialog.tsx`, `web/lib/review-view.ts` y su prueba | `case-assembly.ts`, `calc-engine.ts`, `hard-rules-engine.ts` |
+| **Benjamin · fase 7** | `feat/s2-authorization-domain`, `feat/s2-authorization-api`, `feat/s2-authorization-ui` | `domain/verdict-casting.ts`, `domain/minutes.ts`, `application/authorization.ts`, `api/modules/approvals/*` (ya registrado), `web/app/(app)/approvals/*` (esqueleto y menú listos), `web/app/(app)/operations/[id]/vote/*`, `.../minutes/*`, `web/components/case-file/decision-tab.tsx`, `web/lib/authorization-view.ts` y su prueba | `verdict-policy.ts`, `decision-factors.ts`, `calc-engine.ts` |
+| **Derek · fase 6** | `feat/s2-ai-review-domain`, `feat/s2-ai-review-ui` | `domain/ai-alerts.ts`, `application/ai-review.ts`, `api/modules/ai/*`, `web/components/case-file/ai-review-tab.tsx`, `web/lib/ai-review-view.ts` y su prueba | `review-submission.ts` |
 
-En la tabla, `domain` = `packages/domain/src`, `application` = `packages/application/src`, `api` = `apps/api/src`, `web` = `apps/web`. **Si necesitas un archivo que no es de tu carril, no lo edites: pídelo en el PR de su dueño o en un PR al contrato.**
+`apps/web/lib/view.ts` y `view.test.ts` son compartidos y quedan de solo lectura: cada carril pone sus helpers y pruebas de UI en su propio `lib/<carril>-view.ts`. En la tabla, `domain` = `packages/domain/src`, `application` = `packages/application/src`, `api` = `apps/api/src`, `web` = `apps/web`. **Si necesitas un archivo que no es de tu carril, no lo edites: pídelo en el PR de su dueño o en un PR al contrato.**
 
 Lo que ya trae `main` para cada carril:
 
 - **Fases 4–5:** inyecta `REVIEW_DEPS` (`ReviewDeps`: los repos de captación + `facts`). En pruebas usa `fakeReviewDeps` (`packages/application/src/test-support/review-fakes.ts`); `failFacts: true` simula el motor caído.
-- **Fase 7:** inyecta `AUTHORIZATION_DEPS` (`AuthorizationDeps`: repos + `decisions`). En pruebas usa `fakeAuthorizationDeps` y los actores `delegatedAuthorizer` y `secondCouncilMember`.
+- **Fase 7:** inyecta `AUTHORIZATION_DEPS` (`AuthorizationDeps`: repos + `decisions` + `policy` + `directory` + `factors`). `deps.directory.countByOffice("COUNCIL_MEMBER")` da el `councilMemberCount` de `resolveFinalDecision`; `displayName` da el nombre del acta. En pruebas usa `fakeAuthorizationDeps` y los actores `advisor`, `delegatedAuthorizer`, `councilMember`, `councilMemberB` y `councilMemberC`.
+- **Alertas de IA:** `AiAlert` ya trae `id` y `evidence`; `resolveAiAlert`, `hasUnresolvedAiAlerts` y `assertCanApprove` viven en `packages/domain/src/ai-alerts.ts`.
+- **Sesión de desarrollo:** usuarios `demo-jefatura`, `demo-delegado` (también Consejo), `demo-consejo-2`, `demo-consejo-3` y `demo-vigilancia`. Con ellos se cierran la firma dual y el quórum 3 de 3.
 - **Fase 6:** se suscribe a `REVIEW_FACTS` (`InMemoryReviewFactsPublisher.subscribe`).
 - **Web:** cada pestaña ya existe con un `EmptyState`. Reemplaza el contenido y conserva la firma `(props: CasePanelProps)`.
 - **Bitácora:** las acciones nuevas ya están en `CaptureAuditAction` con su etiqueta. Usa `appendAudit(deps, …)`.
@@ -72,6 +74,7 @@ Lo que ya trae `main` para cada carril:
 | 7 | `getAuthorizationStatus` | — | `operation:read` | `GET /operations/:id/authorization` | — | Benjamin |
 | 7 | `castVerdict` | UNDER_REVIEW → APPROVED, REJECTED o RETURNED_TO_ADVISOR al cerrar la ruta | `operation:verdict` | `POST /operations/:id/verdicts` | `VERDICT_CAST` en `DecisionLog` | Benjamin |
 | 7 | `getMinutes` | — | `operation:read` | `GET /operations/:id/minutes` | — | Benjamin |
+| 7 | `getPolicy` (ya existe) | — | — | `GET /approvals/policy` | — | Benjamin |
 
 `POST /approvals/resolve` recibe hoy `actorId`, `originatorId` y veredictos en el cuerpo, que es el mismo problema que B4. En B4 se retira o queda como simulador sin campos de actor.
 
@@ -85,10 +88,12 @@ Lo que ya trae `main` para cada carril:
   - Los umbrales salen de config.
 - **Fase 5:**
   - «Listo» exige armado vigente, ningún BLOCK sin excepción y las cinco secciones del 5C.
-  - Se envía solo desde READY_FOR_REVIEW.
+  - Se envía solo desde READY_FOR_REVIEW, y cada envío abre una ronda nueva (`verdicts` vacío; la historia queda en `DecisionLog`).
+  - Guardar el dictamen o justificar una excepción no borra el armado; solo los cambios del expediente lo hacen.
   - El envío publica el hecho y nunca falla por la IA.
   - Después del envío no se edita.
 - **Fase 6:**
+  - El análisis real depende de los grupos 5–7 del motor, aún pendientes. Si el 14 de octubre no están, la demo usa un análisis de prueba marcado en la UI (D6).
   - Resolver exige CONFIRMED o DISMISSED con motivo, solo en UNDER_REVIEW y una sola vez.
   - La IA no escribe Verdict, CalcResult, FinancialAssessment ni Opinion5C.
 - **Fase 7:**
@@ -96,7 +101,8 @@ Lo que ya trae `main` para cada carril:
   - Quien originó no firma como delegado ni vota como Consejo; sí puede firmar como jefatura.
   - El veredicto guarda el cargo ejercido.
   - `APPROVE_WITH_CHANGES` exige cambio y recalcula.
-  - `RETURN` exige comentario.
+  - `RETURN` y `REJECT` exigen motivo.
+  - Con votos mixtos se aprueba con el menor monto y el menor plazo propuestos; la banda no cambia.
   - No se aprueba con alertas sin resolver.
   - `DecisionLog` es append-only.
 
@@ -106,7 +112,7 @@ Las tareas con archivos y pruebas están en [`tasks.md`](../openspec/changes/rev
 
 - **Josué:** R1–R7.
 - **Benjamin:** B1–B7.
-- **Derek:** D1–D6.
+- **Derek:** D0.1–D0.4 (hechas) y D1–D7.
 
 Al cerrar una tarea, márcala en `tasks.md` dentro de tu PR.
 
@@ -157,7 +163,9 @@ Ramas: feat/s2-review-domain (R1–R4), feat/s2-review-api (R5) y feat/s2-review
 Orden: domain (hard-rule-exception, review-readiness) → application (review-submission) → api (review.controller) → web (pestañas Cálculo y Dictamen).
 El cálculo ya existe: no reimplementes calculateCreditMetrics ni evaluateHardRules; solo pásales los umbrales de config.
 Inyecta REVIEW_DEPS en la API; en pruebas usa fakeReviewDeps (failFacts: true para el motor caído).
-submitForReview publica con deps.facts.publish y, si falla, el envío igual queda hecho.
+submitForReview abre una ronda nueva (verdicts vacío), publica con deps.facts.publish y, si falla, el envío igual queda hecho.
+saveOpinion y justifyHardRuleException no deben borrar assembledAt: no uses el save() de case-file.ts.
+R2 toca solo recalculate en case-file.ts.
 ```
 
 ### Benjamin · fase 7
@@ -168,15 +176,16 @@ Ramas: feat/s2-authorization-domain (B1–B3), feat/s2-authorization-api (B4) y 
 Orden: domain (verdict-casting, minutes) → application (authorization) → api (approvals) → web (bandeja, voto móvil, decisión, acta).
 Reutiliza verdict-policy.ts (resolveRoute, officeToExercise, assertOnePersonOnce, assertOriginatorCannotAuthorize, resolveFinalDecision); no dupliques sus reglas.
 APPROVE_WITH_CHANGES recalcula con calculateCreditMetrics; no copies la fórmula.
-Inyecta AUTHORIZATION_DEPS en la API; en pruebas usa fakeAuthorizationDeps.
+Inyecta AUTHORIZATION_DEPS en la API (trae policy, directory y factors); en pruebas usa fakeAuthorizationDeps.
+RETURN y REJECT exigen motivo; con votos mixtos se aprueba con el menor monto y plazo propuestos.
 Retira el actor del cuerpo en POST /approvals/resolve.
 ```
 
 ### Derek · fase 6
 
 ```text
-Tu carril: fase 6 (D1–D6). Integra main en feat/motor-ia antes de D1; no mezcles el motor con el core.
-D1 trae a main AiEvidence, AiAlert con evidencias y ai-alerts.ts desde feat/motor-ia, con motivo obligatorio y solo en UNDER_REVIEW.
+Tu carril: fase 6 (D1–D7). Integra main en feat/motor-ia antes de D1; no mezcles el motor con el core.
+ai-alerts.ts y AiEvidence ya están en main (PR 0), idénticos a los del motor. D1 les agrega motivo obligatorio y la regla de solo UNDER_REVIEW.
 El motor se suscribe a REVIEW_FACTS; escribe solo en el esquema ai y nunca escribe Verdict, CalcResult ni Opinion5C.
 ```
 
@@ -188,6 +197,8 @@ El motor se suscribe a REVIEW_FACTS; escribe solo en el esquema ai y nunca escri
 | ¿Largo mínimo de una justificación? | `justification.minLength`, semilla 20 (excepciones, devoluciones y alertas). |
 | ¿Qué invalida una excepción? | Un cambio en la evaluación (`inputsHash`). |
 | ¿El Consejo vota en la app? | Sí, cada miembro desde su teléfono; el acta se arma al cerrar el quórum. |
+| ¿Qué monto queda si los votos aprobatorios difieren? | El menor monto y el menor plazo propuestos; la banda se fija al enviar. |
+| ¿Qué pasa con los votos al reenviar tras una devolución? | Ronda nueva: se vacían; la historia queda en `DecisionLog`. |
 
 ## 8. Checklist de revisión (antes de cada merge)
 

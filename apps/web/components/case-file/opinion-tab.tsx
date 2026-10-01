@@ -5,7 +5,7 @@ import type { CasePanelProps } from "./use-case-action";
 
 /**
  * Fase 5 · Dictamen 5C y envío a revisión (C-08).
- * Dueño: rtdash (tareas R7). Esqueleto del PR 0: reemplaza este contenido, no cambies la firma.
+ * Dueño: Josué (tareas R7). Esqueleto del PR 0: reemplaza este contenido, no cambies la firma.
  */
 export function OpinionTab(_props: CasePanelProps) {
   const { EmptyState } = useCrece();

@@ -1,4 +1,10 @@
-import type { DecisionLog, ReviewFactsPublisher } from "@crece/domain";
+import type {
+  ConfigRepository,
+  DecisionFactorRepository,
+  DecisionLog,
+  ReviewFactsPublisher,
+  UserDirectory,
+} from "@crece/domain";
 import type { CaptureDeps } from "./capture-deps";
 
 /**
@@ -9,7 +15,16 @@ export type ReviewDeps = CaptureDeps & {
   facts: ReviewFactsPublisher;
 };
 
-/** Dependencias de la fase 7 (autorización). `decisions` es append-only. */
+/**
+ * Dependencias de la fase 7 (autorización).
+ * - `decisions`: bitácora de veredictos, append-only.
+ * - `policy`: política de autorización vigente (umbral, bandas, quórum).
+ * - `directory`: nombre de quien vota (acta) y miembros activos del Consejo (quórum).
+ * - `factors`: vocabulario activo para validar los factores del voto.
+ */
 export type AuthorizationDeps = CaptureDeps & {
   decisions: DecisionLog;
+  policy: Pick<ConfigRepository, "getAuthorizationPolicy">;
+  directory: UserDirectory;
+  factors: Pick<DecisionFactorRepository, "findActive">;
 };

@@ -221,15 +221,7 @@ export function mapDecisionToState(decision: VerdictDecision): OperationState {
   }
 }
 
-export function hasUnresolvedAiAlerts(alerts: AiAlert[]): boolean {
-  return alerts.some((a) => !a.resolution);
-}
-
-export function assertCanApprove(alerts: AiAlert[]): void {
-  if (hasUnresolvedAiAlerts(alerts)) {
-    throw new InvariantViolationError("Hay alertas de IA sin resolver");
-  }
-}
+/** `hasUnresolvedAiAlerts` y `assertCanApprove` viven en `ai-alerts.ts`. */
 
 /** Política de autorización: funciones puras sobre config versionada. */
 export const authorizationPolicy = {

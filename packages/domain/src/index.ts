@@ -3,6 +3,7 @@ export * from "./checklist-resolver";
 export * from "./calc-engine";
 export * from "./hard-rules-engine";
 export * from "./verdict-policy";
+export * from "./ai-alerts";
 export * from "./ocr-confirmation";
 export * from "./entities";
 export * from "./ports";

@@ -69,8 +69,18 @@ export type DecisionLog = {
 };
 
 /**
+ * Directorio de usuarios internos: nombre para el acta y cuántos tienen un cargo
+ * (el quórum del Consejo se mide contra los miembros activos). Lo implementa el
+ * `AuthGateway` cuando exista; hoy, la sesión de desarrollo.
+ */
+export type UserDirectory = {
+  displayName(userId: UserId): Promise<string>;
+  countByOffice(office: Office): Promise<number>;
+};
+
+/**
  * Publica los hechos del proceso de crédito hacia quien quiera reaccionar (hoy, el motor de IA).
- * Quien publica no espera respuesta: si nadie escucha o falla, el caso de uso igual termina.
+ * Quien publica no espera a los suscriptores: si nadie escucha o alguno falla, el caso de uso igual termina.
  */
 export type ReviewFactsPublisher = {
   publish(fact: OperationSubmittedForReview): Promise<void>;

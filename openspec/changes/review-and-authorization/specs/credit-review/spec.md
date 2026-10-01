@@ -7,10 +7,10 @@ Fases 4 y 5 del proceso de crédito: reglas duras con excepción justificada, di
 ## ADDED Requirements
 
 ### Requirement: Hard rule thresholds from configuration
-`evaluateHardRules` SHALL receive its thresholds from `ConfigRepository` key `hardRules`. `DEFAULT_HARD_RULES_CONFIG` is only a seed.
+`evaluateHardRules` SHALL receive its thresholds from `ConfigRepository` key `hardRules` (an object `Partial<HardRulesConfig>`, merged over `DEFAULT_HARD_RULES_CONFIG`, which is only a seed). `RatesConfig.maxInstallmentToIncomeRatio` MUST NOT be used by hard rules.
 
 #### Scenario: Threshold changed in configuration
-- **WHEN** `hardRules.maxInstallmentToIncomeRatio` is set to 0.40 and the assessment gives a ratio of 0.38
+- **WHEN** the `hardRules` entry is `{ "maxInstallmentToIncomeRatio": 0.40 }` and the assessment gives a ratio of 0.38
 - **THEN** `HIGH_INSTALLMENT_RATIO` is not hit, without any code change
 
 ### Requirement: Justified exception to a hard rule
@@ -29,7 +29,7 @@ A person with `operation:edit` SHALL be able to justify an exception on a hit pr
 - **THEN** the exception is rejected because the case is not editable
 
 ### Requirement: Exceptions follow the assessment
-When the financial assessment is saved again and `calcResult.inputsHash` changes, the hits SHALL be recomputed without the previous exceptions. When the hash does not change, existing exceptions SHALL be kept.
+Whenever the hits are recomputed (`recalculate` in `case-file.ts`, called when the assessment or the guarantor changes) and `calcResult.inputsHash` changes, the hits SHALL be recomputed without the previous exceptions. When the hash does not change, existing exceptions SHALL be kept.
 
 #### Scenario: Income corrected after an exception
 - **WHEN** an exception was justified and the advisor changes the monthly income
@@ -43,7 +43,13 @@ The 5C opinion (`Opinion5C`: character, capacity, capital, collateral, condition
 - **THEN** the operation stores the opinion and the audit log records who saved it
 
 ### Requirement: Ready for review preconditions
-`markReadyForReview` SHALL move `DRAFT` or `RETURNED_TO_ADVISOR` to `READY_FOR_REVIEW` only when the case is assembled and unchanged since then, no `BLOCK` hit lacks an exception and the five opinion sections have text. Otherwise it SHALL fail listing what is missing.
+`markReadyForReview` SHALL move `DRAFT` or `RETURNED_TO_ADVISOR` to `READY_FOR_REVIEW` only when the case is assembled (`assembledAt` set), no `BLOCK` hit lacks an exception and the five opinion sections have text. Otherwise it SHALL fail listing what is missing.
+
+Only case-file changes (checklist, assessment, guarantor, watch-list checks) clear the assembly record. Saving the opinion or justifying an exception MUST NOT clear it, so these use cases persist without going through the case-file `save()` that clears `assembledAt`.
+
+#### Scenario: Opinion saved after assembling
+- **WHEN** the case is assembled and the advisor then saves the opinion and justifies an exception
+- **THEN** `assembledAt` is unchanged and the operation can be marked ready
 
 #### Scenario: Missing opinion section
 - **WHEN** the case is assembled, all blocking rules have exceptions and "conditions" is empty
@@ -57,11 +63,15 @@ The 5C opinion (`Opinion5C`: character, capacity, capital, collateral, condition
 - **THEN** it returns to `DRAFT` and is editable again
 
 ### Requirement: Submit for review never depends on AI
-`submitForReview` SHALL move `READY_FOR_REVIEW` to `UNDER_REVIEW`, set `submittedForReviewAt`, log `OPERATION_SUBMITTED` and publish `OperationSubmittedForReview`. If publishing fails, the submission SHALL remain done.
+`submitForReview` SHALL move `READY_FOR_REVIEW` to `UNDER_REVIEW`, set `submittedForReviewAt`, open a new review round (clear `verdicts`; the history stays in `DecisionLog`), log `OPERATION_SUBMITTED` and publish `OperationSubmittedForReview` (`type`, `operationId`, `submittedBy`, `occurredAt`, the same shape as the AI engine's schema). If publishing fails, the submission SHALL remain done.
 
 #### Scenario: AI engine is down
 - **WHEN** the advisor submits and the facts publisher throws
 - **THEN** the operation is `UNDER_REVIEW` and the response is successful
+
+#### Scenario: Resubmission after a return
+- **WHEN** an operation returned with one `RETURN` verdict is submitted again
+- **THEN** `verdicts` is empty for the new round and the earlier verdict remains in `DecisionLog`
 
 #### Scenario: Submit from draft
 - **WHEN** the operation is `DRAFT`

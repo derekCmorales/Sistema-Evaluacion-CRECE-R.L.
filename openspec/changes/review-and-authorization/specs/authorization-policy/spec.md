@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Verdicts cast on the operation
-`castVerdict` SHALL apply `resolveRoute`, `officeToExercise`, one-person-once, the originator rule, factor validation and `assertCanApprove` on the stored operation. Each verdict SHALL be appended to `DecisionLog` as `VERDICT_CAST` with the exercised office. When `resolveFinalDecision` closes the route, the operation SHALL transition with `assertTransition`.
+`castVerdict` SHALL apply `resolveRoute`, `officeToExercise`, one-person-once, the originator rule, factor validation against the active `DecisionFactor` catalog and `assertCanApprove` (from `ai-alerts.ts`) on the stored operation. `resolveFinalDecision` SHALL receive the number of active council members from `UserDirectory.countByOffice`. Each verdict SHALL be appended to `DecisionLog` as `VERDICT_CAST` with the exercised office. When `resolveFinalDecision` closes the route, the operation SHALL transition with `assertTransition`.
 
 #### Scenario: Dual signature completed
 - **WHEN** an operation below the threshold receives `APPROVE` from a `BRANCH_HEAD` and then from a different `DELEGATED_AUTHORIZER`
@@ -13,12 +13,23 @@
 - **WHEN** a verdict targets an operation that is not `UNDER_REVIEW`
 - **THEN** it is rejected and nothing is logged
 
-### Requirement: Return requires a comment
-A `RETURN` verdict SHALL require a comment of at least `justification.minLength` characters, store it as `returnComment` and move the operation to `RETURNED_TO_ADVISOR` when the route closes.
+### Requirement: Return and reject require a reason
+`RETURN` and `REJECT` verdicts SHALL require a reason of at least `justification.minLength` characters. A `RETURN` that closes the route SHALL store its reason as `returnComment` and move the operation to `RETURNED_TO_ADVISOR`.
 
 #### Scenario: Return without comment
 - **WHEN** a council member returns an operation with an empty comment
 - **THEN** the domain rejects it
+
+#### Scenario: Reject without reason
+- **WHEN** a signer rejects with a reason shorter than the minimum
+- **THEN** the domain rejects it
+
+### Requirement: Approved terms with mixed votes
+The route band SHALL be fixed by the requested amount at submission. When the route closes as approved and at least one approving verdict is `APPROVE_WITH_CHANGES`, the outcome SHALL be approval with changes, with the lowest `modifiedAmount` and the shortest `modifiedTermMonths` among those verdicts (unchanged values keep the requested ones), and `CalcResult` SHALL be recomputed with them. The band MUST NOT be recomputed with the new amount.
+
+#### Scenario: One approval and two approvals with changes
+- **WHEN** a quorum closes with `APPROVE` and two `APPROVE_WITH_CHANGES` to Q130,000 and Q135,000 at 60 months
+- **THEN** the operation is approved at Q130,000 and 60 months, with the installment recomputed
 
 ### Requirement: Authorization inbox
 `GET /approvals/inbox` SHALL list only `UNDER_REVIEW` operations whose route still needs an office the current user can exercise on them, excluding operations where the user already voted or is the originator for delegate or council offices.

@@ -11,6 +11,8 @@ const NAV = [
   { id: "persons", href: "/persons", label: "Solicitantes", icon: "Users" },
   { id: "persons-new", href: "/persons/new", label: "Registrar solicitante", icon: "IdentificationCard" },
   { id: "operations-new", href: "/operations/new", label: "Abrir solicitud", icon: "FileText" },
+  { section: "Autorización" },
+  { id: "approvals", href: "/approvals", label: "Por firmar", icon: "Signature" },
   { section: "Herramientas" },
   { id: "calc", href: "/calc", label: "Simulador de cuota", icon: "Calculator" },
 ] as const;
