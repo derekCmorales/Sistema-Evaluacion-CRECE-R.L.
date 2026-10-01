@@ -1,11 +1,8 @@
 import {
   ValidationError,
-  toPersonId,
-  type PersonStatus,
   type ProspectInterest,
   type ProspectSource,
 } from "@crece/shared";
-import type { Person } from "@crece/domain";
 
 export type PublicProspectInput = {
   fullName: string;
@@ -69,19 +66,5 @@ export function parsePublicProspect(input: unknown): PublicProspectInput {
     message: message || undefined,
     source,
     consentContact,
-  };
-}
-
-export function toProspectPerson(
-  input: PublicProspectInput,
-  id: string,
-  now = new Date().toISOString(),
-): Person {
-  return {
-    id: toPersonId(id),
-    fullName: input.fullName,
-    contacts: { phone: input.phone, email: input.email },
-    status: "PROSPECT" as PersonStatus,
-    createdAt: now,
   };
 }

@@ -28,7 +28,7 @@
 ## Reglas para `apps/web`
 
 1. Consumir **solo tokens semánticos** (`bg-surface`, `text-primary`, `brand`, `accent`, `success`…). Nada de hex sueltos ni primitivos (`blue-700`) en pantallas.
-2. Para web: `design-system/assets/Platforms/crece-tokens.css` (variables, temas claro/oscuro, `@font-face`) y `tailwind.preset.js`. Fuentes empaquetadas en `design-system/fonts/` (Urbanist para `display`, Figtree para `sans`; licencia OFL).
+2. Para web: `design-system/assets/Platforms/crece-tokens.css` (variables, temas claro/oscuro, `@font-face`) y los componentes de `components/bundle.js` + `bundle.css`. `apps/web` los publica sin modificarlos en `/ds` (`scripts/sync-design-system.mjs`) y los usa desde `lib/crece-ds.tsx` (`useCrece()`). Fuentes empaquetadas en `design-system/fonts/` (Urbanist para `display`, Figtree para `sans`; licencia OFL).
 3. Antes de crear un componente, buscarlo en el catálogo; si no existe, componerlo con los existentes y los tokens.
 4. Textos de UI en español (es-GT), según «Contenido y voz».
 

@@ -1,8 +1,20 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from "@nestjs/common";
 import {
   DEFAULT_RATES_CONFIG,
   ValidationError,
   money,
+  type Actor,
   type GuaranteeType,
   type ProductType,
 } from "@crece/shared";
@@ -11,6 +23,20 @@ import {
   createChecklistItems,
   evaluateHardRules,
 } from "@crece/domain";
+import {
+  getCaseFile,
+  getOperationHistory,
+  listCaseFiles,
+  markCaseAssembled,
+  openDraftOperation,
+  recordFinancialAssessment,
+  recordWatchlistCheck,
+  setGuarantor,
+  updateChecklistItem,
+  type CaptureDeps,
+} from "@crece/application";
+import { CurrentActor } from "../../common/current-actor";
+import { CAPTURE_DEPS } from "../capture/capture.tokens";
 
 const PRODUCTS: ProductType[] = [
   "WORKING_CAPITAL",
@@ -21,15 +47,14 @@ const GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 
 @Controller("operations")
 export class OperationsController {
+  constructor(@Inject(CAPTURE_DEPS) private readonly deps: CaptureDeps) {}
+
   @Get()
-  listStub() {
-    return {
-      message:
-        "Listado persistido pendiente de Prisma. Use GET /operations/checklist y POST /operations/calc.",
-      items: [],
-    };
+  async list(@CurrentActor() actor: Actor) {
+    return { items: await listCaseFiles(this.deps, actor) };
   }
 
+  /** Vista previa del checklist dinámico antes de abrir la solicitud. */
   @Get("checklist")
   checklist(
     @Query("productType") productType: string,
@@ -88,6 +113,52 @@ export class OperationsController {
       bureauDelinquencyMonths: body.bureauDelinquencyMonths,
     });
     return { calcResult, hardRuleHits };
+  }
+
+  /** Fase 2: apertura de la solicitud en borrador sobre una persona existente. */
+  @Post()
+  @HttpCode(201)
+  open(@CurrentActor() actor: Actor, @Body() body: unknown) {
+    return openDraftOperation(this.deps, actor, body);
+  }
+
+  /** Fase 3: expediente completo con su estado de armado. */
+  @Get(":id")
+  caseFile(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return getCaseFile(this.deps, actor, id);
+  }
+
+  @Get(":id/history")
+  async history(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return { items: await getOperationHistory(this.deps, actor, id) };
+  }
+
+  @Patch(":id/checklist")
+  updateChecklist(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return updateChecklistItem(this.deps, actor, id, body);
+  }
+
+  @Put(":id/assessment")
+  assessment(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return recordFinancialAssessment(this.deps, actor, id, body);
+  }
+
+  @Put(":id/guarantor")
+  guarantor(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return setGuarantor(this.deps, actor, id, body);
+  }
+
+  @Post(":id/watchlist")
+  @HttpCode(201)
+  watchlist(@CurrentActor() actor: Actor, @Param("id") id: string, @Body() body: unknown) {
+    return recordWatchlistCheck(this.deps, actor, id, body);
+  }
+
+  /** Constancia de quién armó el expediente. */
+  @Post(":id/assemble")
+  @HttpCode(200)
+  assemble(@CurrentActor() actor: Actor, @Param("id") id: string) {
+    return markCaseAssembled(this.deps, actor, id);
   }
 }
 

@@ -1,16 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "CRECE — Evaluación",
@@ -18,6 +7,7 @@ export const metadata: Metadata = {
     "Sistema interno de captación y evaluación — Cooperativa CRECE Guatemala, R.L.",
 };
 
+/** Tokens y estilos de componentes salen del design system publicado en /ds (scripts/sync-design-system.mjs). */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,9 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-GT">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body>
+        <link rel="stylesheet" href="/ds/crece-tokens.css" precedence="default" />
+        <link rel="stylesheet" href="/ds/bundle.css" precedence="default" />
         {children}
       </body>
     </html>

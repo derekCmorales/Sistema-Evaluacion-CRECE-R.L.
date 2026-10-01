@@ -1,45 +1,19 @@
-import { Body, Controller, Get, HttpCode, Post } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import { parsePublicProspect, toProspectPerson } from "@crece/application";
-import { InMemoryProspectStore } from "./in-memory-prospect.store";
+import { Body, Controller, HttpCode, Inject, Post } from "@nestjs/common";
+import { registerLandingProspect, type CaptureDeps } from "@crece/application";
+import { CAPTURE_DEPS } from "../capture/capture.tokens";
 
 @Controller()
 export class ProspectsController {
-  constructor(private readonly store: InMemoryProspectStore) {}
-
-  @Get("prospects")
-  list() {
-    return {
-      persistence: "in-memory",
-      items: this.store.list(),
-    };
-  }
+  constructor(@Inject(CAPTURE_DEPS) private readonly deps: CaptureDeps) {}
 
   /**
-   * Contrato landing → sistema. Crea solo Person (PROSPECT), nunca Operation.
+   * Contrato landing → sistema (único puente con el otro repo). Crea solo Person PROSPECT,
+   * nunca Operation, en el mismo repositorio que usa la agencia.
    */
   @Post("public/prospects")
   @HttpCode(201)
-  createFromLanding(@Body() body: unknown) {
-    const parsed = parsePublicProspect({ ...asObject(body), source: "LANDING" });
-    const person = toProspectPerson(parsed, randomUUID());
-    const stored = this.store.add({
-      ...person,
-      interest: parsed.interest,
-      amountHint: parsed.amountHint,
-      message: parsed.message,
-      source: parsed.source,
-    });
-    return {
-      prospectId: stored.id,
-      status: stored.status,
-      interest: stored.interest,
-    };
+  async createFromLanding(@Body() body: unknown) {
+    const person = await registerLandingProspect(this.deps, body);
+    return { prospectId: person.id, status: person.status, interest: person.interest };
   }
-}
-
-function asObject(body: unknown): Record<string, unknown> {
-  return typeof body === "object" && body !== null
-    ? (body as Record<string, unknown>)
-    : {};
 }

@@ -28,7 +28,25 @@ export type Person = {
   dpi?: string;
   address?: string;
   status: PersonStatus;
+  source?: import("@crece/shared").PersonSource;
+  interest?: import("@crece/shared").ProspectInterest;
+  /** Quién lo registró en agencia. Ausente si llegó por la landing. */
+  registeredByUserId?: UserId;
+  /** Lo que el prospecto escribió en la landing. Orienta al asesor; no abre operación. */
+  intakeNote?: { amountHint?: number; message?: string };
+  contactConsentAt?: string;
   createdAt: string;
+};
+
+/** Consulta a una lista de control (OFAC, ONU, Guatecompras), registrada a mano por quien la hizo. */
+export type WatchlistCheck = {
+  id: string;
+  source: import("@crece/shared").WatchlistSource;
+  queryRef: string;
+  result: import("@crece/shared").WatchlistResult;
+  checkedByUserId: UserId;
+  checkedAt: string;
+  notes?: string;
 };
 
 export type Guarantor = {
@@ -85,6 +103,9 @@ export type Operation = {
   returnComment?: string;
   submittedForReviewAt?: string;
   minutesHtml?: string;
+  assembledByUserId?: UserId;
+  assembledAt?: string;
+  watchlistChecks?: WatchlistCheck[];
   createdBy: UserId;
   createdAt: string;
   updatedAt: string;

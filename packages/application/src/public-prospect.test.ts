@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@crece/shared";
-import { parsePublicProspect, toProspectPerson } from "./public-prospect";
+import { parsePublicProspect } from "./public-prospect";
 
 describe("public-prospect", () => {
   const valid = {
@@ -11,20 +11,12 @@ describe("public-prospect", () => {
     consentContact: true,
   };
 
-  it("crea solo Person en estado PROSPECT", () => {
-    const parsed = parsePublicProspect(valid);
-    const person = toProspectPerson(parsed, "p-1", "2026-09-22T00:00:00.000Z");
-    expect(person.status).toBe("PROSPECT");
-    expect(person.fullName).toBe("Marco Pérez");
-    expect(person).not.toHaveProperty("operations");
+  it("valida el formulario público", () => {
+    expect(parsePublicProspect(valid)).toMatchObject({ fullName: "Marco Pérez", source: "LANDING" });
   });
 
   it("exige consentimiento y teléfono", () => {
-    expect(() =>
-      parsePublicProspect({ ...valid, consentContact: false }),
-    ).toThrow(ValidationError);
-    expect(() => parsePublicProspect({ ...valid, phone: "12" })).toThrow(
-      ValidationError,
-    );
+    expect(() => parsePublicProspect({ ...valid, consentContact: false })).toThrow(ValidationError);
+    expect(() => parsePublicProspect({ ...valid, phone: "12" })).toThrow(ValidationError);
   });
 });

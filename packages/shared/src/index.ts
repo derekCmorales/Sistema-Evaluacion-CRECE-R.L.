@@ -131,6 +131,10 @@ export type Opinion5C = {
 export type ProspectInterest = "CREDIT" | "SAVINGS" | "FIXED_TERM";
 
 export type ProspectSource = "LANDING" | "ADVISOR";
+export type PersonSource = ProspectSource;
+
+export type WatchlistSource = "OFAC" | "ONU" | "GUATECOMPRAS";
+export type WatchlistResult = "CLEAR" | "MATCH_FOUND" | "PENDING_MANUAL_REVIEW";
 
 export type AiAlertType = "BUREAU_MISMATCH" | "INCOHERENCE" | "OTHER";
 
@@ -338,5 +342,147 @@ export class InvariantViolationError extends DomainError {
 export class ValidationError extends DomainError {
   constructor(message: string) {
     super(message, "VALIDATION");
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Captación: fases 1–3 (registro, apertura en borrador, armado del expediente)
+ * ------------------------------------------------------------------------- */
+
+export const API_PERSONS_PATH = "/persons" as const;
+export const API_OPERATIONS_PATH = "/operations" as const;
+
+/** Identidad del usuario que actúa. Llega del `AuthGateway`; hoy, de la sesión de desarrollo. */
+export type Actor = {
+  userId: UserId;
+  offices: Office[];
+};
+
+export const PERSON_SOURCE_LABELS: Record<PersonSource, string> = {
+  LANDING: "Landing",
+  ADVISOR: "Agencia",
+};
+
+export const WATCHLIST_SOURCE_LABELS: Record<WatchlistSource, string> = {
+  OFAC: "OFAC",
+  ONU: "ONU",
+  GUATECOMPRAS: "Guatecompras",
+};
+
+export const WATCHLIST_RESULT_LABELS: Record<WatchlistResult, string> = {
+  CLEAR: "Sin coincidencias",
+  MATCH_FOUND: "Coincidencia encontrada",
+  PENDING_MANUAL_REVIEW: "En revisión manual",
+};
+
+/**
+ * Semilla de configuración — el valor vivo vive en `caseAssembly.watchlistSources` (DB).
+ * Listas de control que todo expediente consulta antes de pasar a revisión.
+ */
+export const WATCHLIST_SOURCES_SEED: WatchlistSource[] = ["OFAC", "ONU", "GUATECOMPRAS"];
+
+export const CASE_ASSEMBLY_CONFIG_KEYS = {
+  watchlistSources: "caseAssembly.watchlistSources",
+} as const;
+
+/** Qué le falta a un expediente para quedar armado. */
+export type CaseAssemblyGap =
+  | "CHECKLIST_PENDING"
+  | "ASSESSMENT_MISSING"
+  | "GUARANTOR_INCOMPLETE"
+  | "WATCHLIST_MISSING"
+  | "WATCHLIST_PENDING_REVIEW"
+  | "WATCHLIST_MATCH";
+
+export const CASE_ASSEMBLY_GAP_LABELS: Record<CaseAssemblyGap, string> = {
+  CHECKLIST_PENDING: "Requisitos obligatorios pendientes",
+  ASSESSMENT_MISSING: "Falta la evaluación financiera",
+  GUARANTOR_INCOMPLETE: "Faltan datos o evaluación del fiador",
+  WATCHLIST_MISSING: "Falta consultar listas de control",
+  WATCHLIST_PENDING_REVIEW: "Consulta en revisión manual",
+  WATCHLIST_MATCH: "Coincidencia en listas: analizar antes de seguir",
+};
+
+/** Fila del directorio de solicitantes. El DPI viaja enmascarado (minimización de PII). */
+export type PersonListItem = {
+  id: PersonId;
+  fullName: string;
+  dpiMasked?: string;
+  phone: string;
+  status: PersonStatus;
+  source?: PersonSource;
+  interest?: ProspectInterest;
+  createdAt: string;
+  operationsCount: number;
+};
+
+/** Fila del historial de solicitudes de una persona. */
+export type OperationListItem = {
+  id: OperationId;
+  personId: PersonId;
+  productType: ProductType;
+  guaranteeType: GuaranteeType;
+  requestedAmount: Money;
+  termMonths: number;
+  purpose: string;
+  state: OperationState;
+  hasGuarantor: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Acciones de captación que quedan en la bitácora (append-only). */
+export type CaptureAuditAction =
+  | "PROSPECT_CREATED"
+  | "PERSON_REGISTERED"
+  | "PERSON_DPI_ASSIGNED"
+  | "OPERATION_OPENED"
+  | "CHECKLIST_ITEM_UPDATED"
+  | "ASSESSMENT_RECORDED"
+  | "GUARANTOR_SET"
+  | "WATCHLIST_CHECKED"
+  | "CASE_ASSEMBLED";
+
+export const CAPTURE_AUDIT_ACTION_LABELS: Record<CaptureAuditAction, string> = {
+  PROSPECT_CREATED: "Prospecto recibido desde la landing",
+  PERSON_REGISTERED: "Solicitante registrado en agencia",
+  PERSON_DPI_ASSIGNED: "DPI completado",
+  OPERATION_OPENED: "Solicitud abierta en borrador",
+  CHECKLIST_ITEM_UPDATED: "Requisito actualizado",
+  ASSESSMENT_RECORDED: "Evaluación financiera capturada",
+  GUARANTOR_SET: "Fiador registrado",
+  WATCHLIST_CHECKED: "Consulta a lista de control",
+  CASE_ASSEMBLED: "Expediente marcado como armado",
+};
+
+/** Autor de lo que entra por la landing: no hay usuario interno detrás. */
+export const LANDING_ACTOR_ID: UserId = toUserId("system:landing");
+
+/** Fila de la cola de expedientes, con su avance de armado. */
+export type CaseFileListItem = OperationListItem & {
+  personName: string;
+  readyForReview: boolean;
+  gapsCount: number;
+};
+
+export class NotFoundError extends DomainError {
+  constructor(message: string) {
+    super(message, "NOT_FOUND");
+  }
+}
+
+export class UnauthenticatedError extends DomainError {
+  constructor(message = "Inicia sesión para continuar") {
+    super(message, "UNAUTHENTICATED");
+  }
+}
+
+/** El DPI ya pertenece a otra persona: se reutiliza su perfil, no se duplica. */
+export class DuplicatePersonError extends DomainError {
+  constructor(readonly existingPersonId: PersonId) {
+    super(
+      "Ya existe una persona con ese DPI. Abre la solicitud desde su perfil en lugar de registrarla de nuevo.",
+      "DUPLICATE_PERSON",
+    );
   }
 }

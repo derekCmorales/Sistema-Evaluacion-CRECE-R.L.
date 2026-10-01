@@ -1,26 +1,87 @@
-@import "tailwindcss";
+/*
+ * Pegamento de layout. Todo lo visual sale del design system (tokens en /ds/crece-tokens.css,
+ * componentes en /ds/bundle.css): aquí solo hay disposición y siempre con tokens.
+ */
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg-canvas);
+  color: var(--text-body);
+  font-family: var(--font-sans);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.app-frame {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.app-frame .cr-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.app-frame .app-frame__menu {
+  display: none;
+}
+
+.app-frame__scrim {
+  display: none;
+}
+
+/* Bajo 1024px la barra lateral se vuelve cajón (design-system/components/Sidebar). */
+@media (max-width: 1023px) {
+  .app-frame .cr-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--z-drawer);
+    transform: translateX(-100%);
+    transition: transform var(--duration-base) var(--ease-brand);
+  }
+
+  .app-frame[data-nav-open="true"] .cr-sidebar {
+    transform: none;
+    box-shadow: var(--elevation-3);
+  }
+
+  .app-frame[data-nav-open="true"] .app-frame__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-drawer) - 1);
+    background: var(--overlay);
+  }
+
+  .app-frame .app-frame__menu {
+    display: inline-flex;
+  }
+
+  .app-frame .cr-app-shell__content {
+    padding: var(--space-5);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Detalle + panel lateral (grilla 1.5/1 de design-system/docs/40-pantallas.md). */
+.layout-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+@media (max-width: 1023px) {
+  .layout-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
