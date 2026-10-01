@@ -196,6 +196,16 @@ export const DEFAULT_SEMAPHORE_CONFIG = {
   waitingReminderDays: 5,
 };
 
+/**
+ * Semilla de listas de control exigidas al armar el expediente.
+ * En producción se lee de configuración (DB), no se duplica en la UI.
+ */
+export const DEFAULT_REQUIRED_WATCHLIST_SOURCES: WatchlistSource[] = [
+  "OFAC",
+  "ONU",
+  "GUATECOMPRAS",
+];
+
 export const DEFAULT_RATES_CONFIG = {
   creditAnnualRatePercent: 18,
   fixedTermRates: { minMonths: 6, maxMonths: 36, annualRatePercent: 8 },
@@ -345,6 +355,12 @@ export class ValidationError extends DomainError {
   }
 }
 
+export class NotFoundError extends DomainError {
+  constructor(message: string) {
+    super(message, "NOT_FOUND");
+  }
+}
+
 /* =========================================================================
  * CONTRATOS INICIALES: FASE 1, FASE 2 Y FASE 3 (Desarrollo Simultáneo)
  * ========================================================================= */
@@ -364,6 +380,8 @@ export type CreatePersonInput = {
   interest: ProspectInterest;
   source: PersonSource;
   registeredByUserId?: UserId;
+  /** Prospecto de la landing que se completa en lugar de crear otra persona. */
+  existingPersonId?: PersonId;
 };
 
 export type PersonSummaryDto = {
@@ -486,5 +504,9 @@ export type CaseAssemblyStatusDto = {
   pendingChecklistCount: number;
   hasFinancialAssessment: boolean;
   watchlistChecksCompleted: boolean;
+  watchlistGaps: {
+    source: WatchlistSource;
+    reason: "MISSING" | "MATCH_FOUND" | "PENDING_MANUAL_REVIEW";
+  }[];
   readyForReview: boolean;
 };
