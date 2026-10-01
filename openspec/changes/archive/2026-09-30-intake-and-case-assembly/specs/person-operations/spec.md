@@ -5,6 +5,11 @@
 ### Requirement: Person aggregate
 The system SHALL keep one identity per person across channels and operations. `POST /public/prospects` and agency registration SHALL write to the same `PersonRepository`. Every person SHALL be created in `PROSPECT` status, whether it comes from the landing or is registered by an advisor, and registration SHALL NOT create an `Operation`.
 
+#### Scenario: Landing prospect
+- **WHEN** `POST /public/prospects` receives a valid form
+- **THEN** only a `Person` in `PROSPECT` status is created
+- **AND** no `Operation` is created
+
 #### Scenario: Advisor registration
 - **WHEN** an advisor registers Don Marco with his DPI
 - **THEN** a `Person` in `PROSPECT` status exists with source `ADVISOR` and `registeredByUserId` set to the advisor, and no `Operation` exists

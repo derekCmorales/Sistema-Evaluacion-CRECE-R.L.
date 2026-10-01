@@ -10,6 +10,7 @@ import type {
   UserId,
   Office,
   NotificationType,
+  OperationSubmittedForReview,
 } from "@crece/shared";
 import type { CalcEngineInput, CalcResult, FinancialAssessmentInput } from "./calc-engine";
 import type { AuditEntry } from "./audit-log";
@@ -65,6 +66,14 @@ export type CalcEngine = {
 export type DecisionLog = {
   append(entry: Omit<DecisionLogEntry, "id" | "at">): Promise<DecisionLogEntry>;
   findByOperation(operationId: OperationId): Promise<DecisionLogEntry[]>;
+};
+
+/**
+ * Publica los hechos del proceso de crédito hacia quien quiera reaccionar (hoy, el motor de IA).
+ * Quien publica no espera respuesta: si nadie escucha o falla, el caso de uso igual termina.
+ */
+export type ReviewFactsPublisher = {
+  publish(fact: OperationSubmittedForReview): Promise<void>;
 };
 
 export type AuditLog = {

@@ -5,16 +5,21 @@ import {
   DEFAULT_SEMAPHORE_CONFIG,
   toOperationId,
   toPersonId,
+  type OperationId,
+  type OperationSubmittedForReview,
   type UserId,
 } from "@crece/shared";
 import type {
   AuditEntry,
   AuditLog,
   ConfigRepository,
+  DecisionLog,
+  DecisionLogEntry,
   Operation,
   OperationRepository,
   Person,
   PersonRepository,
+  ReviewFactsPublisher,
 } from "@crece/domain";
 
 /**
@@ -99,6 +104,43 @@ export class InMemoryAuditLog implements AuditLog {
 
   async findAll(limit?: number) {
     return limit === undefined ? [...this.entries] : this.entries.slice(-limit);
+  }
+}
+
+/** Bitácora de decisiones de la fase 7. Append-only: no expone modificar ni borrar. */
+export class InMemoryDecisionLog implements DecisionLog {
+  private readonly entries: DecisionLogEntry[] = [];
+
+  async append(entry: Omit<DecisionLogEntry, "id" | "at">) {
+    const saved: DecisionLogEntry = { ...entry, id: randomUUID(), at: new Date().toISOString() };
+    this.entries.push(saved);
+    return saved;
+  }
+
+  async findByOperation(operationId: OperationId) {
+    return this.entries.filter((e) => e.operationId === operationId);
+  }
+}
+
+/**
+ * Recibe el hecho del envío a revisión. Hasta que la fase 6 conecte el motor (tarea D3),
+ * solo lo guarda en memoria; los suscriptores se registran con `subscribe`.
+ */
+export class InMemoryReviewFactsPublisher implements ReviewFactsPublisher {
+  private readonly published: OperationSubmittedForReview[] = [];
+  private readonly subscribers: Array<(fact: OperationSubmittedForReview) => Promise<void>> = [];
+
+  subscribe(handler: (fact: OperationSubmittedForReview) => Promise<void>) {
+    this.subscribers.push(handler);
+  }
+
+  async publish(fact: OperationSubmittedForReview) {
+    this.published.push(fact);
+    for (const handler of this.subscribers) await handler(fact);
+  }
+
+  history(): readonly OperationSubmittedForReview[] {
+    return this.published;
   }
 }
 

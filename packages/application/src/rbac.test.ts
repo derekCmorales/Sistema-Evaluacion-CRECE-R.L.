@@ -25,4 +25,11 @@ describe("RBAC consultar vs operar", () => {
     expect(hasPermission(["BRANCH_HEAD"], "operation:create")).toBe(true);
     expect(hasPermission(["BRANCH_HEAD"], "operation:sign-below")).toBe(true);
   });
+
+  it("las alertas de IA las resuelve quien responde por el expediente, no quien firma", () => {
+    expect(hasPermission(["ADVISOR"], "operation:review-alerts")).toBe(true);
+    expect(hasPermission(["BRANCH_HEAD"], "operation:review-alerts")).toBe(true);
+    expect(hasPermission(["DELEGATED_AUTHORIZER"], "operation:review-alerts")).toBe(false);
+    expect(hasPermission(["COUNCIL_MEMBER"], "operation:review-alerts")).toBe(false);
+  });
 });

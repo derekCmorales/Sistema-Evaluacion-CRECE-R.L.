@@ -30,4 +30,4 @@
 ## 6. Docs
 
 - [x] 6.1 `docs/uso.md`, `docs/testing.md`, `docs/diagramas/20-secuencia-captacion.md`.
-- [ ] 6.2 Al mergear: `openspec archive intake-and-case-assembly` (sincroniza `person-operations`, `checklist` y crea `case-assembly`).
+- [x] 6.2 Al mergear: `openspec archive intake-and-case-assembly` (sincroniza `person-operations`, `checklist` y crea `case-assembly`).

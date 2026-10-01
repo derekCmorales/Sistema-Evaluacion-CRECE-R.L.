@@ -18,6 +18,8 @@ export const PERMISSIONS: Record<string, Office[]> = {
   "operation:create": ["ADVISOR", "BRANCH_HEAD"],
   "operation:edit": ["ADVISOR", "BRANCH_HEAD"],
   "operation:submit": ["ADVISOR", "BRANCH_HEAD"],
+  /** Confirmar o descartar alertas de IA con motivo, antes de la firma (fase 6). */
+  "operation:review-alerts": ["ADVISOR", "BRANCH_HEAD"],
   "operation:verdict": ["DELEGATED_AUTHORIZER", "BRANCH_HEAD", "COUNCIL_MEMBER"],
   "operation:sign-below": ["BRANCH_HEAD", "DELEGATED_AUTHORIZER"],
   "operation:vote-council": ["COUNCIL_MEMBER"],

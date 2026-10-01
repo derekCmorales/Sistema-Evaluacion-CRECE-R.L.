@@ -1,14 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { Global, Module } from "@nestjs/common";
-import type { CaptureDeps } from "@crece/application";
+import type { AuthorizationDeps, CaptureDeps, ReviewDeps } from "@crece/application";
 import {
   InMemoryAuditLog,
+  InMemoryDecisionLog,
+  InMemoryReviewFactsPublisher,
   InMemoryOperationRepository,
   InMemoryPersonRepository,
   SeedConfigRepository,
 } from "../../infrastructure/persistence/in-memory-repositories";
 import { seedDemoData } from "../../infrastructure/persistence/demo-seed";
-import { CAPTURE_DEPS } from "./capture.tokens";
+import { AUTHORIZATION_DEPS, CAPTURE_DEPS, REVIEW_DEPS, REVIEW_FACTS } from "./capture.tokens";
 
 export function createCaptureDeps(): CaptureDeps {
   return {
@@ -22,9 +24,9 @@ export function createCaptureDeps(): CaptureDeps {
 }
 
 /**
- * Composición de la captación (fases 1–3): un solo juego de repositorios para
- * landing, personas y operaciones. Con `CRECE_DEMO_SEED=false` arranca vacío;
- * en producción nunca siembra.
+ * Composición del proceso de crédito: un solo juego de repositorios para landing, personas,
+ * operaciones, revisión (fases 4–5) y autorización (fase 7). Con `CRECE_DEMO_SEED=false`
+ * arranca vacío; en producción nunca siembra.
  */
 @Global()
 @Module({
@@ -38,7 +40,18 @@ export function createCaptureDeps(): CaptureDeps {
         return deps;
       },
     },
+    { provide: REVIEW_FACTS, useFactory: () => new InMemoryReviewFactsPublisher() },
+    {
+      provide: REVIEW_DEPS,
+      inject: [CAPTURE_DEPS, REVIEW_FACTS],
+      useFactory: (deps: CaptureDeps, facts: InMemoryReviewFactsPublisher): ReviewDeps => ({ ...deps, facts }),
+    },
+    {
+      provide: AUTHORIZATION_DEPS,
+      inject: [CAPTURE_DEPS],
+      useFactory: (deps: CaptureDeps): AuthorizationDeps => ({ ...deps, decisions: new InMemoryDecisionLog() }),
+    },
   ],
-  exports: [CAPTURE_DEPS],
+  exports: [CAPTURE_DEPS, REVIEW_DEPS, AUTHORIZATION_DEPS, REVIEW_FACTS],
 })
 export class CaptureModule {}

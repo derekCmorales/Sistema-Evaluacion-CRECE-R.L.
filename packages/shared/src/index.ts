@@ -441,7 +441,15 @@ export type CaptureAuditAction =
   | "ASSESSMENT_RECORDED"
   | "GUARANTOR_SET"
   | "WATCHLIST_CHECKED"
-  | "CASE_ASSEMBLED";
+  | "CASE_ASSEMBLED"
+  // Sprint 2 · fases 4 a 7 (contrato del PR 0)
+  | "HARD_RULE_EXCEPTION_JUSTIFIED"
+  | "OPINION_SAVED"
+  | "OPERATION_READY_FOR_REVIEW"
+  | "OPERATION_REOPENED"
+  | "OPERATION_SUBMITTED"
+  | "AI_ALERT_RESOLVED"
+  | "AI_REVIEW_RETRIED";
 
 export const CAPTURE_AUDIT_ACTION_LABELS: Record<CaptureAuditAction, string> = {
   PROSPECT_CREATED: "Prospecto recibido desde la landing",
@@ -453,6 +461,81 @@ export const CAPTURE_AUDIT_ACTION_LABELS: Record<CaptureAuditAction, string> = {
   GUARANTOR_SET: "Fiador registrado",
   WATCHLIST_CHECKED: "Consulta a lista de control",
   CASE_ASSEMBLED: "Expediente marcado como armado",
+  HARD_RULE_EXCEPTION_JUSTIFIED: "Excepción a una regla justificada",
+  OPINION_SAVED: "Dictamen 5C guardado",
+  OPERATION_READY_FOR_REVIEW: "Solicitud marcada lista para revisión",
+  OPERATION_REOPENED: "Captura reabierta",
+  OPERATION_SUBMITTED: "Solicitud enviada a revisión",
+  AI_ALERT_RESOLVED: "Alerta de IA resuelta",
+  AI_REVIEW_RETRIED: "Análisis de IA reintentado",
+};
+
+/**
+ * Llave de configuración del largo mínimo de toda justificación escrita por una persona
+ * (excepción a regla, devolución, descarte de alerta). El valor vivo sale de `ConfigRepository`.
+ */
+export const JUSTIFICATION_MIN_LENGTH_KEY = "justification.minLength";
+
+/** Semilla del largo mínimo de una justificación. No usar fuera de seeds / fallbacks. */
+export const JUSTIFICATION_MIN_LENGTH_SEED = 20;
+
+/**
+ * Hecho que publica `submitForReview` (fase 5). Lo consume el motor de IA (fase 6);
+ * el envío nunca depende de que alguien lo procese.
+ */
+export type OperationSubmittedForReview = {
+  type: "OperationSubmittedForReview";
+  operationId: OperationId;
+  submittedAt: string;
+  submittedBy: UserId;
+};
+
+/** Fila de la bandeja por firmar (D-04): solo lo que a los cargos del usuario les falta. */
+export type AuthorizationInboxItem = {
+  operationId: OperationId;
+  personName: string;
+  purpose: string;
+  amount: Money;
+  route: AuthorizationRoute;
+  /** Cargo con el que este usuario firmaría o votaría. */
+  officeToExercise: Office;
+  /** Firmas o votos que aún faltan para cerrar la ruta. */
+  missingOffices: Office[];
+  votesCast: number;
+  votesRequired: number;
+  submittedForReviewAt: string;
+  waitingDays: number;
+  unresolvedAiAlerts: number;
+};
+
+/** Un voto del acta: la persona, el cargo ejercido y lo que decidió. */
+export type MinutesVote = {
+  byUserId: UserId;
+  byName: string;
+  officeCode: Office;
+  decision: VerdictDecision;
+  factorCodes: string[];
+  reason?: string;
+  modifiedAmount?: Money;
+  modifiedTermMonths?: number;
+  at: string;
+};
+
+/** Acta de autorización (D-07), armada desde los veredictos. El PDF es de la fase 8. */
+export type MinutesView = {
+  operationId: OperationId;
+  route: AuthorizationRoute;
+  personName: string;
+  purpose: string;
+  requestedAmount: Money;
+  termMonths: number;
+  preparedBy: UserId;
+  submittedForReviewAt: string;
+  votes: MinutesVote[];
+  finalState: OperationState;
+  approvedAmount?: Money;
+  approvedTermMonths?: number;
+  generatedAt: string;
 };
 
 /** Autor de lo que entra por la landing: no hay usuario interno detrás. */
