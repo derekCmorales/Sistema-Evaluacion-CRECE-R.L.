@@ -2,18 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   NotFoundException,
   Param,
   Patch,
   Post,
   Query,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import {
   DEFAULT_RATES_CONFIG,
   ValidationError,
+  maskDpi,
   money,
-  toUserId,
   type GuaranteeType,
   type ProductType,
 } from "@crece/shared";
@@ -21,12 +21,14 @@ import {
   calculateCreditMetrics,
   createChecklistItems,
   evaluateHardRules,
+  type Operation,
 } from "@crece/domain";
-import {
-  parseCreateDraftOperation,
-  toDraftOperationEntity,
-} from "@crece/application";
+import { assertPermission, markAssembled, openDraftOperation } from "@crece/application";
 import { InMemoryOperationStore } from "./in-memory-operation.store";
+import { InMemoryPersonStore } from "../persons/in-memory-person.store";
+import { InMemoryAuditLog } from "../memory/in-memory-audit-log";
+import { intakeDeps } from "../memory/intake-deps";
+import { actorFromHeaders } from "../../common/actor";
 import { UpdateChecklistService } from "./services/update-checklist.service";
 import { FinancialAssessmentService } from "./services/financial-assessment.service";
 import { GuarantorService } from "./services/guarantor.service";
@@ -44,6 +46,8 @@ const GUARANTEES: GuaranteeType[] = ["MORTGAGE", "PLEDGE", "PERSONAL", "MIXED"];
 export class OperationsController {
   constructor(
     private readonly store: InMemoryOperationStore,
+    private readonly persons: InMemoryPersonStore,
+    private readonly audit: InMemoryAuditLog,
     private readonly updateChecklistService: UpdateChecklistService,
     private readonly financialAssessmentService: FinancialAssessmentService,
     private readonly guarantorService: GuarantorService,
@@ -52,10 +56,16 @@ export class OperationsController {
   ) {}
 
   @Get()
-  list(@Query("personId") personId?: string) {
-    const items = personId ? this.store.getByPersonId(personId) : this.store.list();
+  list(
+    @Query("personId") personId: string | undefined,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    assertPermission(actorFromHeaders(headers).offices, "operation:read");
+    const items = (personId ? this.store.getByPersonId(personId) : this.store.list()).map(
+      maskOperationDpi,
+    );
     return {
-      persistence: "in-memory-contracts",
+      persistence: "in-memory",
       items,
     };
   }
@@ -64,8 +74,10 @@ export class OperationsController {
   checklist(
     @Query("productType") productType: string,
     @Query("guaranteeType") guaranteeType: string,
-    @Query("hasGuarantor") hasGuarantor?: string,
+    @Query("hasGuarantor") hasGuarantor: string | undefined,
+    @Headers() headers: Record<string, string | string[] | undefined>,
   ) {
+    assertPermission(actorFromHeaders(headers).offices, "operation:read");
     if (!PRODUCTS.includes(productType as ProductType)) {
       throw new ValidationError("productType inválido");
     }
@@ -81,7 +93,11 @@ export class OperationsController {
   }
 
   @Get(":id")
-  getOne(@Param("id") id: string) {
+  getOne(
+    @Param("id") id: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    assertPermission(actorFromHeaders(headers).offices, "operation:read");
     const op = this.store.get(id);
     if (!op) {
       throw new NotFoundException(`Operación con id ${id} no encontrada`);
@@ -93,10 +109,15 @@ export class OperationsController {
    * Fase 2: Apertura de solicitud en borrador (DRAFT)
    */
   @Post()
-  createDraft(@Body() body: unknown) {
-    const parsed = parseCreateDraftOperation(body);
-    const operation = toDraftOperationEntity(parsed, randomUUID());
-    const stored = this.store.add(operation);
+  createDraft(
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const stored = openDraftOperation(
+      intakeDeps(this.persons, this.store, this.audit),
+      body,
+      actorFromHeaders(headers),
+    );
     return {
       operationId: stored.id,
       personId: stored.personId,
@@ -110,54 +131,74 @@ export class OperationsController {
    * Fase 3: Actualización de casillas del checklist (carga o N/A justificado)
    */
   @Patch(":id/checklist")
-  updateChecklist(@Param("id") id: string, @Body() body: unknown) {
-    return this.updateChecklistService.execute(id, asObject(body));
+  updateChecklist(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.updateChecklistService.execute(id, asObject(body), actorFromHeaders(headers));
   }
 
   /**
    * Fase 3: Captura manual de evaluación financiera + cálculo determinístico
    */
   @Post(":id/assessment")
-  updateAssessment(@Param("id") id: string, @Body() body: unknown) {
-    return this.financialAssessmentService.execute(id, asObject(body));
+  updateAssessment(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.financialAssessmentService.execute(id, asObject(body), actorFromHeaders(headers));
   }
 
   /**
    * Fase 3: Registro de fiador opcional
    */
   @Post(":id/guarantor")
-  updateGuarantor(@Param("id") id: string, @Body() body: unknown) {
-    return this.guarantorService.execute(id, asObject(body));
+  updateGuarantor(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.guarantorService.execute(id, asObject(body), actorFromHeaders(headers));
   }
 
   /**
    * Fase 3: Registro de consulta a listas de control (OFAC, ONU, Guatecompras)
    */
   @Post(":id/watchlist")
-  recordWatchlistCheck(@Param("id") id: string, @Body() body: unknown) {
-    return this.watchlistService.execute(id, asObject(body));
+  recordWatchlistCheck(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.watchlistService.execute(id, asObject(body), actorFromHeaders(headers));
   }
 
   /**
    * Fase 3: Estado de completitud del expediente
    */
   @Get(":id/assembly-status")
-  getAssemblyStatus(@Param("id") id: string) {
-    return this.caseAssemblyStatusService.evaluate(id);
+  getAssemblyStatus(
+    @Param("id") id: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.caseAssemblyStatusService.evaluate(id, actorFromHeaders(headers));
   }
 
   /**
    * Fase 3: Trazabilidad de quién armó el caso
    */
   @Post(":id/assemble")
-  setAssembledBy(@Param("id") id: string, @Body() body: { assembledByUserId: string }) {
-    if (!body?.assembledByUserId?.trim()) {
-      throw new ValidationError("assembledByUserId es obligatorio");
-    }
-    const updated = this.store.setAssembledBy(id, toUserId(body.assembledByUserId.trim()));
-    if (!updated) {
-      throw new NotFoundException(`Operación con id ${id} no encontrada`);
-    }
+  setAssembledBy(
+    @Param("id") id: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const updated = markAssembled(
+      intakeDeps(this.persons, this.store, this.audit),
+      id,
+      actorFromHeaders(headers),
+    );
     return {
       operationId: updated.id,
       assembledByUserId: updated.assembledByUserId,
@@ -204,6 +245,14 @@ export class OperationsController {
     });
     return { calcResult, hardRuleHits };
   }
+}
+
+function maskOperationDpi(operation: Operation): Operation {
+  if (!operation.guarantor?.dpi) return operation;
+  return {
+    ...operation,
+    guarantor: { ...operation.guarantor, dpi: maskDpi(operation.guarantor.dpi) },
+  };
 }
 
 function asObject(body: unknown): Record<string, unknown> {

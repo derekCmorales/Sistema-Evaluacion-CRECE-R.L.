@@ -14,9 +14,11 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const status =
       exception.code === "FORBIDDEN"
         ? HttpStatus.FORBIDDEN
-        : exception.code === "INVARIANT_VIOLATION"
-          ? HttpStatus.CONFLICT
-          : HttpStatus.BAD_REQUEST;
+        : exception.code === "NOT_FOUND"
+          ? HttpStatus.NOT_FOUND
+          : exception.code === "INVARIANT_VIOLATION"
+            ? HttpStatus.CONFLICT
+            : HttpStatus.BAD_REQUEST;
     res.status(status).json({
       statusCode: status,
       code: exception.code,

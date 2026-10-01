@@ -1,103 +1,82 @@
+import { Body, Controller, Get, Headers, Param, Post } from "@nestjs/common";
 import {
-  Body,
-  ConflictException,
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-} from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import { parseCreatePerson, toPersonEntity } from "@crece/application";
+  assertPermission,
+  getPerson,
+  listPersons,
+  registerPerson,
+} from "@crece/application";
+import { maskDpi, NotFoundError } from "@crece/shared";
+import { normalizeDpi } from "@crece/application";
 import { InMemoryPersonStore } from "./in-memory-person.store";
 import { InMemoryOperationStore } from "../operations/in-memory-operation.store";
+import { InMemoryAuditLog } from "../memory/in-memory-audit-log";
+import { intakeDeps } from "../memory/intake-deps";
+import { actorFromHeaders } from "../../common/actor";
 
 @Controller("persons")
 export class PersonsController {
   constructor(
-    private readonly store: InMemoryPersonStore,
-    private readonly opStore: InMemoryOperationStore,
+    private readonly persons: InMemoryPersonStore,
+    private readonly operations: InMemoryOperationStore,
+    private readonly audit: InMemoryAuditLog,
   ) {}
 
   @Get()
-  list() {
-    const items = this.store.list().map((p) => ({
-      ...p,
-      operationsCount: this.opStore.getByPersonId(p.id).length,
-    }));
+  list(@Headers() headers: Record<string, string | string[] | undefined>) {
     return {
-      persistence: "in-memory-contracts",
-      items,
+      persistence: "in-memory",
+      items: listPersons(this.deps(), actorFromHeaders(headers)),
     };
   }
 
-  /**
-   * Búsqueda por DPI para deduplicación (Fase 1).
-   * Si ya existe, se devuelve para reutilizar el perfil sin duplicar.
-   */
-  @Get("by-dpi/:dpi")
-  getByDpi(@Param("dpi") dpi: string) {
-    const person = this.store.getByDpi(dpi);
+  /** El DPI viaja en el cuerpo, no en la URL. */
+  @Post("lookup")
+  lookup(
+    @Body() body: { dpi?: string },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const actor = actorFromHeaders(headers);
+    assertPermission(actor.offices, "person:read");
+    const dpi = normalizeDpi(body?.dpi);
+    const person = this.persons.getByDpi(dpi);
     if (!person) {
-      throw new NotFoundException(`No existe persona registrada con DPI ${dpi}`);
+      throw new NotFoundError("No existe una persona con ese DPI");
     }
-    const operations = this.opStore.getByPersonId(person.id);
     return {
       ...person,
-      operationsCount: operations.length,
-      operations,
+      operationsCount: this.operations.getByPersonId(person.id).length,
     };
   }
 
   @Get(":id")
-  getOne(@Param("id") id: string) {
-    const person = this.store.getById(id);
-    if (!person) {
-      throw new NotFoundException(`Persona con id ${id} no encontrada`);
-    }
-    const operations = this.opStore.getByPersonId(person.id);
-    return {
-      ...person,
-      operationsCount: operations.length,
-      operations,
-    };
+  getOne(
+    @Param("id") id: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return getPerson(this.deps(), id, actorFromHeaders(headers));
   }
 
-  /**
-   * Historial de expedientes previos de la persona (Fase 1).
-   */
   @Get(":id/operations")
-  getPersonOperations(@Param("id") id: string) {
-    const person = this.store.getById(id);
-    if (!person) {
-      throw new NotFoundException(`Persona con id ${id} no encontrada`);
-    }
-    const operations = this.opStore.getByPersonId(person.id);
+  getPersonOperations(
+    @Param("id") id: string,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const detail = getPerson(this.deps(), id, actorFromHeaders(headers));
     return {
-      personId: person.id,
-      fullName: person.fullName,
-      dpi: person.dpi,
-      operations,
-      count: operations.length,
+      personId: detail.id,
+      fullName: detail.fullName,
+      dpi: detail.dpi ? maskDpi(detail.dpi) : "",
+      operations: detail.operations,
+      count: detail.operations.length,
     };
   }
 
-  /**
-   * Registro del solicitante (Fase 1).
-   * Falla con ConflictException si el DPI ya está registrado.
-   */
   @Post()
-  create(@Body() body: unknown) {
-    const parsed = parseCreatePerson(body);
-    const existing = this.store.getByDpi(parsed.dpi);
-    if (existing) {
-      throw new ConflictException(
-        `Ya existe una persona registrada con el DPI ${parsed.dpi}. No se duplican perfiles; asocie la solicitud a la persona existente (${existing.id}).`,
-      );
-    }
-
-    const person = toPersonEntity(parsed, randomUUID());
-    const stored = this.store.add(person);
+  create(
+    @Body() body: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const stored = registerPerson(this.deps(), body, actorFromHeaders(headers));
     return {
       personId: stored.id,
       fullName: stored.fullName,
@@ -108,5 +87,9 @@ export class PersonsController {
       registeredByUserId: stored.registeredByUserId,
       createdAt: stored.createdAt,
     };
+  }
+
+  private deps() {
+    return intakeDeps(this.persons, this.operations, this.audit);
   }
 }

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NotFoundException } from "@nestjs/common";
-import { ValidationError, type WatchlistCheckSummaryDto } from "@crece/shared";
+import { NotFoundError, ValidationError, type WatchlistCheckSummaryDto } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { WatchlistService } from "../services/watchlist.service";
 
@@ -113,6 +112,6 @@ describe("WatchlistService", () => {
         result: "CLEAR",
         checkedByUserId: "user-1",
       }),
-    ).toThrow(NotFoundException);
+    ).toThrow(NotFoundError);
   });
 });

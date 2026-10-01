@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NotFoundException } from "@nestjs/common";
-import { ValidationError } from "@crece/shared";
+import { NotFoundError, ValidationError } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { UpdateChecklistService } from "../services/update-checklist.service";
 
@@ -85,7 +84,16 @@ describe("UpdateChecklistService", () => {
         code: "DPI",
         status: "UPLOADED",
       }),
-    ).toThrow(NotFoundException);
+    ).toThrow(NotFoundError);
+  });
+
+  it("un código que no existe da error", () => {
+    expect(() =>
+      service.execute(MOCK_OP_ID, {
+        code: "NO_EXISTE",
+        status: "UPLOADED",
+      }),
+    ).toThrow(ValidationError);
   });
 
   it("rechaza un estado de checklist inválido", () => {

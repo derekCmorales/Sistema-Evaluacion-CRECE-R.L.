@@ -1,45 +1,47 @@
-import { Body, Controller, Get, HttpCode, Post } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import { parsePublicProspect, toProspectPerson } from "@crece/application";
-import { InMemoryProspectStore } from "./in-memory-prospect.store";
+import { Body, Controller, Get, Headers, HttpCode, Post } from "@nestjs/common";
+import { assertPermission, capturePublicProspect } from "@crece/application";
+import { InMemoryPersonStore } from "../persons/in-memory-person.store";
+import { InMemoryOperationStore } from "../operations/in-memory-operation.store";
+import { InMemoryAuditLog } from "../memory/in-memory-audit-log";
+import { intakeDeps } from "../memory/intake-deps";
+import { actorFromHeaders } from "../../common/actor";
 
 @Controller()
 export class ProspectsController {
-  constructor(private readonly store: InMemoryProspectStore) {}
+  constructor(
+    private readonly persons: InMemoryPersonStore,
+    private readonly operations: InMemoryOperationStore,
+    private readonly audit: InMemoryAuditLog,
+  ) {}
 
   @Get("prospects")
-  list() {
+  list(@Headers() headers: Record<string, string | string[] | undefined>) {
+    assertPermission(actorFromHeaders(headers).offices, "prospect:read");
     return {
       persistence: "in-memory",
-      items: this.store.list(),
+      items: this.persons.list().filter((person) => person.status === "PROSPECT"),
     };
   }
 
   /**
-   * Contrato landing → sistema. Crea solo Person (PROSPECT), nunca Operation.
+   * Landing y agencia escriben en el mismo repositorio de personas.
+   * Crea solo Person (PROSPECT), nunca Operation.
    */
   @Post("public/prospects")
   @HttpCode(201)
   createFromLanding(@Body() body: unknown) {
-    const parsed = parsePublicProspect({ ...asObject(body), source: "LANDING" });
-    const person = toProspectPerson(parsed, randomUUID());
-    const stored = this.store.add({
-      ...person,
-      interest: parsed.interest,
-      amountHint: parsed.amountHint,
-      message: parsed.message,
-      source: parsed.source,
+    const person = capturePublicProspect(this.deps(), {
+      ...(typeof body === "object" && body !== null ? body : {}),
+      source: "LANDING",
     });
     return {
-      prospectId: stored.id,
-      status: stored.status,
-      interest: stored.interest,
+      prospectId: person.id,
+      status: person.status,
+      interest: person.interest,
     };
   }
-}
 
-function asObject(body: unknown): Record<string, unknown> {
-  return typeof body === "object" && body !== null
-    ? (body as Record<string, unknown>)
-    : {};
+  private deps() {
+    return intakeDeps(this.persons, this.operations, this.audit);
+  }
 }

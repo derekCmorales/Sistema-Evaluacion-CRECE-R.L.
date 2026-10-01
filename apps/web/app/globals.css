@@ -1,86 +1,69 @@
-@import "tailwindcss";
 @import "../../../design-system/assets/Platforms/crece-tokens.css";
 @import "../../../design-system/components/bundle.css";
-
-:root {
-  --background: var(--bg-canvas);
-  --foreground: var(--text-body);
-}
-
-@theme inline {
-  --color-background: var(--bg-canvas);
-  --color-foreground: var(--text-body);
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
-}
 
 html,
 body {
   min-height: 100%;
-  height: 100%;
-}
-
-body {
   background: var(--bg-canvas);
   color: var(--text-body);
-  font-family: var(--font-sans);
 }
 
-/* App Shell y Sidebar consistentes e inmunes al tamaño del contenido de la página */
-.cr-app-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  width: 100%;
-  background: var(--bg-subtle);
-}
-
-.cr-sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100dvh;
-  min-height: 100vh;
-  min-height: 100dvh;
-  width: var(--sidebar);
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  background: var(--bg-surface);
-  border-right: var(--border-hairline) solid var(--border-default);
-  box-sizing: border-box;
-}
-
-.cr-app-shell__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--bg-subtle);
-}
-
-.cr-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--bg-surface);
-}
-
-/* Ajustes de layout para evitar separación excesiva entre sidebar y contenido central */
-.cr-app-shell__content {
-  flex: 1;
-  margin: 0;
-  max-width: 1560px;
-  width: 100%;
-  padding: var(--space-6) var(--space-8);
+.crece-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
+  padding: var(--space-6);
+  max-width: 1100px;
+  min-width: 0;
 }
 
+.crece-chrome-actions,
+.crece-office {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
 
+.crece-chrome-actions .cr-field,
+.crece-office .cr-field,
+.crece-chrome-actions .cr-control,
+.crece-office .cr-control {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.crece-chrome-actions .cr-field {
+  width: 12rem;
+}
+
+.crece-chrome-actions select,
+.crece-office select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.crece-mobile {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-subtle);
+  min-width: 0;
+}
+
+.crece-mobile .crece-page {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .crece-page {
+    padding: var(--space-4);
+  }
+
+  .crece-office {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

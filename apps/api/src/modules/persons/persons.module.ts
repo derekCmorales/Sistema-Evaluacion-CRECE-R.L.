@@ -1,12 +1,9 @@
 import { Module } from "@nestjs/common";
+import { MemoryModule } from "../memory/memory.module";
 import { PersonsController } from "./persons.controller";
-import { InMemoryPersonStore } from "./in-memory-person.store";
-import { OperationsModule } from "../operations/operations.module";
 
 @Module({
-  imports: [OperationsModule],
+  imports: [MemoryModule],
   controllers: [PersonsController],
-  providers: [InMemoryPersonStore],
-  exports: [InMemoryPersonStore],
 })
 export class PersonsModule {}

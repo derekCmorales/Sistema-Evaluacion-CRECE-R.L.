@@ -1,38 +1,33 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
-import { parseWatchlistCheckInput } from "@crece/application";
+import { Injectable } from "@nestjs/common";
+import { recordWatchlistCheck, type IntakeActor } from "@crece/application";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
+import { InMemoryPersonStore } from "../../persons/in-memory-person.store";
+import { InMemoryAuditLog } from "../../memory/in-memory-audit-log";
+import { intakeDeps } from "../../memory/intake-deps";
+import { SERVICE_TEST_ACTOR } from "../../../common/actor";
 
 @Injectable()
 export class WatchlistService {
-  constructor(private readonly store: InMemoryOperationStore) {}
+  constructor(
+    private readonly operations: InMemoryOperationStore,
+    private readonly persons: InMemoryPersonStore = new InMemoryPersonStore(),
+    private readonly audit: InMemoryAuditLog = new InMemoryAuditLog(),
+  ) {}
 
-  execute(operationId: string, rawBody: Record<string, unknown>) {
-    const parsed = parseWatchlistCheckInput({
-      ...rawBody,
+  execute(
+    operationId: string,
+    rawBody: Record<string, unknown>,
+    actor: IntakeActor = SERVICE_TEST_ACTOR,
+  ) {
+    const updated = recordWatchlistCheck(
+      intakeDeps(this.persons, this.operations, this.audit),
       operationId,
-    });
-
-    const watchlistEntry = {
-      id: randomUUID(),
-      operationId: parsed.operationId,
-      source: parsed.source,
-      queryRef: parsed.queryRef,
-      result: parsed.result,
-      checkedByUserId: parsed.checkedByUserId,
-      checkedAt: new Date().toISOString(),
-      notes: parsed.notes,
-    };
-
-    const updatedOperation = this.store.addWatchlistCheck(operationId, watchlistEntry);
-
-    if (!updatedOperation) {
-      throw new NotFoundException(`Operación con id ${operationId} no encontrada`);
-    }
-
+      rawBody,
+      actor,
+    );
     return {
-      operationId: updatedOperation.id,
-      watchlistChecks: updatedOperation.watchlistChecks,
+      operationId: updated.id,
+      watchlistChecks: updated.watchlistChecks,
     };
   }
 }

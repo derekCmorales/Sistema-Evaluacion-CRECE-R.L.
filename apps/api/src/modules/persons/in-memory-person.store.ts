@@ -28,7 +28,22 @@ export class InMemoryPersonStore {
   }
 
   add(person: Person): Person {
+    return this.save(person);
+  }
+
+  save(person: Person): Person {
     this.persons.set(person.id, person);
     return person;
+  }
+
+  /** Prospecto de la landing, todavía sin DPI, con el mismo teléfono. */
+  findOpenProspectByPhone(phone: string): Person | undefined {
+    const key = phone.replace(/\D/g, "");
+    return [...this.persons.values()].find(
+      (person) =>
+        person.status === "PROSPECT" &&
+        !person.dpi &&
+        person.contacts.phone.replace(/\D/g, "") === key,
+    );
   }
 }

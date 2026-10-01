@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NotFoundException } from "@nestjs/common";
-import { ValidationError } from "@crece/shared";
+import { NotFoundError, ValidationError } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { GuarantorService } from "../services/guarantor.service";
 import { FinancialAssessmentService } from "../services/financial-assessment.service";
+import { UpdateChecklistService } from "../services/update-checklist.service";
 
 describe("GuarantorService", () => {
   let store: InMemoryOperationStore;
@@ -86,7 +86,21 @@ describe("GuarantorService", () => {
       service.execute("non-existent-id", {
         fullName: "Nombre Completo Válido",
       }),
-    ).toThrow(NotFoundException);
+    ).toThrow(NotFoundError);
+  });
+
+  it("regenera el checklist del fiador sin perder lo confirmado y normaliza el DPI", () => {
+    const checklist = new UpdateChecklistService(store);
+    checklist.execute(MOCK_OP_ID, { code: "DPI", status: "CONFIRMED", documentId: "doc-dpi" });
+
+    const result = service.execute(MOCK_OP_ID, {
+      fullName: "Rosa Gómez Pérez",
+      dpi: "9876 54321 0101",
+    });
+
+    expect(result.guarantor?.dpi).toBe("9876543210101");
+    expect(result.checklist.find((item) => item.code === "DPI")?.status).toBe("CONFIRMED");
+    expect(result.checklist.some((item) => item.code === "GUARANTOR_DPI")).toBe(true);
   });
 
   it("permite registrar fiador sin evaluación financiera", () => {

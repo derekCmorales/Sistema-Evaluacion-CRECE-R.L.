@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NotFoundException } from "@nestjs/common";
-import { ValidationError } from "@crece/shared";
+import { NotFoundError, ValidationError } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { FinancialAssessmentService } from "../services/financial-assessment.service";
 
@@ -80,6 +79,18 @@ describe("FinancialAssessmentService", () => {
     expect(capacityBlock?.severity).toBe("BLOCK");
   });
 
+  it("un dato no numérico da error en vez de descartarse", () => {
+    expect(() =>
+      service.execute(MOCK_OP_ID, {
+        monthlySales: 10000,
+        monthlyIncome: 5000,
+        monthlyExpenses: 2000,
+        existingDebtPayment: 0,
+        guaranteeValue: "doscientos",
+      }),
+    ).toThrow(ValidationError);
+  });
+
   it("rechaza valores negativos en las cifras financieras", () => {
     expect(() =>
       service.execute(MOCK_OP_ID, {
@@ -99,7 +110,7 @@ describe("FinancialAssessmentService", () => {
         monthlyExpenses: 3000,
         existingDebtPayment: 0,
       }),
-    ).toThrow(NotFoundException);
+    ).toThrow(NotFoundError);
   });
 
   it("calcula cobertura de garantía cuando se proporciona guaranteeValue", () => {

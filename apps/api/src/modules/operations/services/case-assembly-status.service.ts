@@ -1,50 +1,26 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { isChecklistReadyForReview } from "@crece/domain";
-import type { CaseAssemblyStatusDto, WatchlistSource } from "@crece/shared";
+import { Injectable } from "@nestjs/common";
+import { caseAssemblyStatus, type IntakeActor } from "@crece/application";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
-
-const REQUIRED_WATCHLIST_SOURCES: WatchlistSource[] = ["OFAC", "ONU", "GUATECOMPRAS"];
+import { InMemoryPersonStore } from "../../persons/in-memory-person.store";
+import { InMemoryAuditLog } from "../../memory/in-memory-audit-log";
+import { WatchlistPolicy } from "../../memory/watchlist-policy";
+import { intakeDeps } from "../../memory/intake-deps";
+import { SERVICE_TEST_ACTOR } from "../../../common/actor";
 
 @Injectable()
 export class CaseAssemblyStatusService {
-  constructor(private readonly store: InMemoryOperationStore) {}
+  constructor(
+    private readonly operations: InMemoryOperationStore,
+    private readonly persons: InMemoryPersonStore = new InMemoryPersonStore(),
+    private readonly audit: InMemoryAuditLog = new InMemoryAuditLog(),
+    private readonly policy: WatchlistPolicy = new WatchlistPolicy(),
+  ) {}
 
-  evaluate(operationId: string): CaseAssemblyStatusDto {
-    const operation = this.store.get(operationId);
-
-    if (!operation) {
-      throw new NotFoundException(`Operación con id ${operationId} no encontrada`);
-    }
-
-    const checklistComplete = isChecklistReadyForReview(operation.checklist);
-
-    const pendingChecklistCount = operation.checklist.filter(
-      (item) => item.required && item.status === "PENDING",
-    ).length;
-
-    const hasFinancialAssessment = operation.assessment !== undefined;
-
-    const completedSources = new Set(
-      (operation.watchlistChecks ?? []).map((check) => check.source),
+  evaluate(operationId: string, actor: IntakeActor = SERVICE_TEST_ACTOR) {
+    return caseAssemblyStatus(
+      intakeDeps(this.persons, this.operations, this.audit, this.policy.requiredSources),
+      operationId,
+      actor,
     );
-    const watchlistChecksCompleted = REQUIRED_WATCHLIST_SOURCES.every((source) =>
-      completedSources.has(source),
-    );
-
-    const readyForReview =
-      checklistComplete &&
-      hasFinancialAssessment &&
-      watchlistChecksCompleted;
-
-    return {
-      operationId: operation.id,
-      assembledByUserId: operation.assembledByUserId,
-      assembledAt: operation.assembledAt,
-      checklistComplete,
-      pendingChecklistCount,
-      hasFinancialAssessment,
-      watchlistChecksCompleted,
-      readyForReview,
-    };
   }
 }

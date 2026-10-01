@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NotFoundException } from "@nestjs/common";
+import { NotFoundError, toUserId } from "@crece/shared";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
 import { CaseAssemblyStatusService } from "../services/case-assembly-status.service";
 import { FinancialAssessmentService } from "../services/financial-assessment.service";
@@ -44,10 +44,12 @@ describe("CaseAssemblyStatusService", () => {
     expect(status.hasFinancialAssessment).toBe(true);
   });
 
-  it("reporta watchlistChecksCompleted=true cuando las 3 fuentes están cubiertas", () => {
-    // mock-op-101 ya tiene los 3 checks preloaded en el store
+  it("una revisión manual deja un hueco aunque las tres listas tengan consulta", () => {
     const status = service.evaluate(MOCK_OP_ID);
-    expect(status.watchlistChecksCompleted).toBe(true);
+    expect(status.watchlistChecksCompleted).toBe(false);
+    expect(status.watchlistGaps).toEqual([
+      { source: "GUATECOMPRAS", reason: "PENDING_MANUAL_REVIEW" },
+    ]);
   });
 
   it("reporta watchlistChecksCompleted=false cuando faltan fuentes", () => {
@@ -57,7 +59,6 @@ describe("CaseAssemblyStatusService", () => {
   });
 
   it("reporta assembledByUserId y assembledAt después de marcar ensamblaje", () => {
-    const { toUserId } = require("@crece/shared");
     store.setAssembledBy(MOCK_OP_ID, toUserId("user-advisor-ana"));
 
     const status = service.evaluate(MOCK_OP_ID);
@@ -87,6 +88,14 @@ describe("CaseAssemblyStatusService", () => {
       existingDebtPayment: 1000,
     });
 
+    const watchlistService = new WatchlistService(store);
+    watchlistService.execute(MOCK_OP_ID, {
+      source: "GUATECOMPRAS",
+      queryRef: "2345678900101",
+      result: "CLEAR",
+      checkedByUserId: "user-advisor-ana",
+    });
+
     const status = service.evaluate(MOCK_OP_ID);
     expect(status.checklistComplete).toBe(true);
     expect(status.hasFinancialAssessment).toBe(true);
@@ -96,6 +105,6 @@ describe("CaseAssemblyStatusService", () => {
   });
 
   it("lanza NotFoundException si la operación no existe", () => {
-    expect(() => service.evaluate("non-existent-id")).toThrow(NotFoundException);
+    expect(() => service.evaluate("non-existent-id")).toThrow(NotFoundError);
   });
 });

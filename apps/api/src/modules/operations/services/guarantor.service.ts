@@ -1,53 +1,36 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { parseGuarantorInput } from "@crece/application";
-import { calculateCreditMetrics, evaluateHardRules } from "@crece/domain";
-import { DEFAULT_RATES_CONFIG } from "@crece/shared";
+import { Injectable } from "@nestjs/common";
+import { addGuarantor, type IntakeActor } from "@crece/application";
 import { InMemoryOperationStore } from "../in-memory-operation.store";
+import { InMemoryPersonStore } from "../../persons/in-memory-person.store";
+import { InMemoryAuditLog } from "../../memory/in-memory-audit-log";
+import { intakeDeps } from "../../memory/intake-deps";
+import { SERVICE_TEST_ACTOR } from "../../../common/actor";
 
 @Injectable()
 export class GuarantorService {
-  constructor(private readonly store: InMemoryOperationStore) {}
+  constructor(
+    private readonly operations: InMemoryOperationStore,
+    private readonly persons: InMemoryPersonStore = new InMemoryPersonStore(),
+    private readonly audit: InMemoryAuditLog = new InMemoryAuditLog(),
+  ) {}
 
-  execute(operationId: string, rawBody: Record<string, unknown>) {
-    const parsed = parseGuarantorInput({
-      ...rawBody,
+  execute(
+    operationId: string,
+    rawBody: Record<string, unknown>,
+    actor: IntakeActor = SERVICE_TEST_ACTOR,
+  ) {
+    const updated = addGuarantor(
+      intakeDeps(this.persons, this.operations, this.audit),
       operationId,
-    });
-
-    const updatedOperation = this.store.updateGuarantor(operationId, parsed);
-
-    if (!updatedOperation) {
-      throw new NotFoundException(`Operación con id ${operationId} no encontrada`);
-    }
-
-    /**
-     * Si la operación ya tiene assessment y el fiador aporta evaluación financiera,
-     * recalcular métricas combinadas para reflejar la garantía adicional.
-     */
-    if (updatedOperation.assessment && parsed.financialAssessment) {
-      const calcResult = calculateCreditMetrics({
-        assessment: updatedOperation.assessment,
-        amount: updatedOperation.requestedAmount,
-        termMonths: updatedOperation.termMonths,
-        annualRatePercent:
-          updatedOperation.interestRate ?? DEFAULT_RATES_CONFIG.creditAnnualRatePercent,
-        guarantorAssessment: parsed.financialAssessment,
-      });
-
-      const hardRuleHits = evaluateHardRules({
-        assessment: updatedOperation.assessment,
-        calcResult,
-        declaredPurpose: updatedOperation.purpose,
-      });
-
-      this.store.updateCalcResult(operationId, calcResult, hardRuleHits);
-    }
-
+      rawBody,
+      actor,
+    );
     return {
-      operationId: updatedOperation.id,
-      guarantor: updatedOperation.guarantor,
-      guarantorAssessment: updatedOperation.guarantorAssessment,
-      updatedAt: updatedOperation.updatedAt,
+      operationId: updated.id,
+      guarantor: updated.guarantor,
+      guarantorAssessment: updated.guarantorAssessment,
+      checklist: updated.checklist,
+      updatedAt: updated.updatedAt,
     };
   }
 }

@@ -48,6 +48,10 @@ export class InMemoryOperationStore {
   }
 
   add(operation: Operation): Operation {
+    return this.save(operation);
+  }
+
+  save(operation: Operation): Operation {
     this.operations.set(operation.id, operation);
     return operation;
   }
