@@ -6,7 +6,7 @@ context: |
   El conocimiento de negocio SÍ aplica: docs/contexto.md y openspec/specs/.
 
   Stack:
-  - apps/web: Next.js 16.3.6, React 19.3.0, TypeScript 7.0.2, Tailwind 4.3.3
+  - apps/web: Next.js 16.3.6, React 19.3.0, TypeScript 7.0.2; UI solo con design-system/ (bundle en /ds)
   - apps/api: NestJS 12.0.4, TypeScript 7.0.2, build vía tsc
   - packages/domain: motor, política, checklist, puertos (sin Nest)
   - packages/application: RBAC y casos de uso

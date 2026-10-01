@@ -85,11 +85,13 @@ Un PR de **solo documentación** no inventa tests. Un PR que cambia reglas y “
 | `packages/domain` | `pnpm --filter @crece/domain test` | junto al módulo, sufijo `.test.ts` |
 | `packages/application` | `pnpm --filter @crece/application test` | igual |
 | `packages/shared` | `pnpm --filter @crece/shared test` | igual |
+| `apps/api` | `pnpm --filter @crece/api test` | `.test.ts` junto al módulo; contrato HTTP levantando Nest (`capture.http.test.ts`) |
+| `apps/web` | `pnpm --filter @crece/web test` | `lib/*.test.ts`: cliente HTTP y presentación, nunca reglas |
 | raíz | `pnpm test` | recorre los paquetes que definen `test` |
 
 Las specs apuntan a esos archivos. Si se mueve un módulo, se actualiza la spec.
 
-API y web aún no tienen runner en el bootstrap: cuando se agreguen, entran a `pnpm test` de raíz. Hasta entonces, un smoke HTTP (`GET /health`, `POST /operations/calc`) **complementa** el dominio; no lo reemplaza.
+API y web resuelven `@crece/*` desde `src` en Vitest: `pnpm test` no depende de un build previo.
 
 ---
 

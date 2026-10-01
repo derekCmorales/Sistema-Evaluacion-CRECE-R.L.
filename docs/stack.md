@@ -14,7 +14,6 @@ Fuente: `npm view <pkg> dist-tags` en esta fecha. **Next y Nest ya estaban en el
 | **react / react-dom** | 19.3.0 | 19.3.0 | Sí |
 | **@types/react / react-dom** | 19.3.0 | 19.3.0 | Sí |
 | **typescript** | **7.0.2** | 7.0.2 | Sí |
-| **tailwindcss / @tailwindcss/postcss** | 4.3.3 | 4.3.3 | Sí |
 | **rxjs** | 7.8.2 | 7.8.2 | Sí (9.0.0-beta.0 no se usa) |
 | **reflect-metadata** | 0.2.2 | 0.2.2 | Sí |
 | **concurrently** | 10.0.5 | 10.0.5 | Sí |
