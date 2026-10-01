@@ -6,7 +6,7 @@ import {
   type PersonSource,
   type ProspectInterest,
 } from "@crece/shared";
-import type { Person } from "@crece/domain";
+import { personBirthStatus, type Person } from "@crece/domain";
 
 const VALID_INTERESTS: ProspectInterest[] = ["CREDIT", "SAVINGS", "FIXED_TERM"];
 const VALID_SOURCES: PersonSource[] = ["LANDING", "ADVISOR"];
@@ -73,6 +73,11 @@ export function parseCreatePerson(input: unknown): CreatePersonInput {
     throw new ValidationError("Se debe registrar el usuario responsable (asesor/jefatura) que capturó al solicitante");
   }
 
+  const existingPersonId =
+    typeof body.existingPersonId === "string" && body.existingPersonId.trim().length > 0
+      ? toPersonId(body.existingPersonId.trim())
+      : undefined;
+
   return {
     fullName,
     dpi,
@@ -81,6 +86,7 @@ export function parseCreatePerson(input: unknown): CreatePersonInput {
     interest,
     source,
     registeredByUserId,
+    existingPersonId,
   };
 }
 
@@ -100,7 +106,7 @@ export function toPersonEntity(
       phone: input.phone,
       email: input.email,
     },
-    status: input.source === "LANDING" ? "PROSPECT" : "ACTIVE",
+    status: personBirthStatus(),
     source: input.source,
     interest: input.interest,
     registeredByUserId: input.registeredByUserId,

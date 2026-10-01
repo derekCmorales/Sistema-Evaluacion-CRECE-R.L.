@@ -82,6 +82,8 @@ export function toProspectPerson(
     fullName: input.fullName,
     contacts: { phone: input.phone, email: input.email },
     status: "PROSPECT" as PersonStatus,
+    source: input.source,
+    interest: input.interest,
     createdAt: now,
   };
 }

@@ -89,7 +89,7 @@ describe("person-contracts", () => {
   });
 
   describe("toPersonEntity", () => {
-    it("crea la entidad Person con estado acorde al origen", () => {
+    it("crea la entidad Person como prospecto aunque la registre el asesor", () => {
       const input = parseCreatePerson({
         fullName: "Mario Gómez",
         dpi: "2345678900101",
@@ -101,7 +101,7 @@ describe("person-contracts", () => {
 
       const person = toPersonEntity(input, "person-101", "2026-09-26T12:00:00.000Z");
       expect(person.id).toBe("person-101");
-      expect(person.status).toBe("ACTIVE");
+      expect(person.status).toBe("PROSPECT");
       expect(person.registeredByUserId).toBe("user-mario");
     });
   });

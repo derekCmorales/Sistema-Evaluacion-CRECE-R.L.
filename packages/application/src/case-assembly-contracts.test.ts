@@ -82,6 +82,19 @@ describe("case-assembly-contracts", () => {
         }),
       ).toThrow(ValidationError);
     });
+
+    it("un dato no numérico da error en vez de descartarse", () => {
+      expect(() =>
+        parseFinancialAssessmentInput({
+          operationId: "op-101",
+          monthlySales: 45000,
+          monthlyIncome: 15000,
+          monthlyExpenses: 8000,
+          existingDebtPayment: 1200,
+          guaranteeValue: "no-es-numero",
+        }),
+      ).toThrow(ValidationError);
+    });
   });
 
   describe("parseGuarantorInput", () => {
@@ -101,6 +114,25 @@ describe("case-assembly-contracts", () => {
       expect(parsed.fullName).toBe("Roberto Carlos Morales");
       expect(parsed.relationship).toBe("Hermano");
       expect(parsed.financialAssessment?.monthlyIncome).toBe(8000);
+    });
+
+    it("normaliza el DPI del fiador a 13 dígitos", () => {
+      const parsed = parseGuarantorInput({
+        operationId: "op-101",
+        fullName: "Roberto Carlos Morales",
+        dpi: "9876 54321 0101",
+      });
+      expect(parsed.dpi).toBe("9876543210101");
+    });
+
+    it("rechaza un DPI de fiador que no tiene 13 dígitos", () => {
+      expect(() =>
+        parseGuarantorInput({
+          operationId: "op-101",
+          fullName: "Roberto Carlos Morales",
+          dpi: "1234",
+        }),
+      ).toThrow(ValidationError);
     });
 
     it("falla si el nombre del fiador no tiene al menos 3 caracteres", () => {

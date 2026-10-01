@@ -11,7 +11,7 @@ import {
   type WatchlistResult,
   type WatchlistSource,
 } from "@crece/shared";
-import type { FinancialAssessmentInput } from "@crece/domain";
+import { normalizeDpi } from "./person-contracts";
 
 const VALID_CHECKLIST_STATUSES: ChecklistItemStatus[] = [
   "PENDING",
@@ -93,48 +93,72 @@ export function parseFinancialAssessmentInput(input: unknown): UpdateFinancialAs
 
   const body = input as Record<string, unknown>;
   const operationId = String(body.operationId ?? "").trim();
-  const monthlySales = Number(body.monthlySales ?? 0);
-  const monthlyIncome = Number(body.monthlyIncome ?? 0);
-  const monthlyExpenses = Number(body.monthlyExpenses ?? 0);
-  const existingDebtPayment = Number(body.existingDebtPayment ?? 0);
-  const guaranteeValue =
-    body.guaranteeValue !== undefined && body.guaranteeValue !== null
-      ? Number(body.guaranteeValue)
-      : undefined;
-  const projectedRoiPercent =
-    body.projectedRoiPercent !== undefined && body.projectedRoiPercent !== null
-      ? Number(body.projectedRoiPercent)
-      : undefined;
 
   if (operationId.length === 0) {
     throw new ValidationError("El identificador de la operación es obligatorio");
   }
 
-  if (!Number.isFinite(monthlySales) || monthlySales < 0) {
-    throw new ValidationError("Las ventas mensuales deben ser un número mayor o igual a 0");
-  }
-
-  if (!Number.isFinite(monthlyIncome) || monthlyIncome < 0) {
-    throw new ValidationError("Los ingresos mensuales deben ser un número mayor o igual a 0");
-  }
-
-  if (!Number.isFinite(monthlyExpenses) || monthlyExpenses < 0) {
-    throw new ValidationError("Los gastos mensuales deben ser un número mayor o igual a 0");
-  }
-
-  if (!Number.isFinite(existingDebtPayment) || existingDebtPayment < 0) {
-    throw new ValidationError("El pago de deudas existentes debe ser un número mayor o igual a 0");
-  }
+  const monthlySales = readNonNegativeAmount(body.monthlySales, "Las ventas mensuales", true);
+  const monthlyIncome = readNonNegativeAmount(body.monthlyIncome, "Los ingresos mensuales", true);
+  const monthlyExpenses = readNonNegativeAmount(body.monthlyExpenses, "Los gastos mensuales", true);
+  const existingDebtPayment = readNonNegativeAmount(
+    body.existingDebtPayment,
+    "El pago de deudas existentes",
+    true,
+  );
+  const guaranteeValue = readNonNegativeAmount(body.guaranteeValue, "El valor de la garantía", false);
+  const projectedRoiPercent = readNonNegativeAmount(
+    body.projectedRoiPercent,
+    "El retorno proyectado",
+    false,
+  );
 
   return {
     operationId: toOperationId(operationId),
-    monthlySales,
-    monthlyIncome,
-    monthlyExpenses,
-    existingDebtPayment,
-    guaranteeValue: guaranteeValue !== undefined && Number.isFinite(guaranteeValue) ? guaranteeValue : undefined,
-    projectedRoiPercent: projectedRoiPercent !== undefined && Number.isFinite(projectedRoiPercent) ? projectedRoiPercent : undefined,
+    monthlySales: monthlySales!,
+    monthlyIncome: monthlyIncome!,
+    monthlyExpenses: monthlyExpenses!,
+    existingDebtPayment: existingDebtPayment!,
+    guaranteeValue,
+    projectedRoiPercent,
   };
+}
+
+/**
+ * Un dato presente que no es numérico es un error. No se descarta en silencio.
+ * `required` obliga a que el campo venga informado.
+ */
+export function readNonNegativeAmount(
+  value: unknown,
+  label: string,
+  required: boolean,
+): number | undefined {
+  if (value === undefined || value === null || value === "") {
+    if (required) {
+      throw new ValidationError(`${label} es obligatorio y debe ser un número`);
+    }
+    return undefined;
+  }
+  if (typeof value === "boolean") {
+    throw new ValidationError(`${label} debe ser un número`);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new ValidationError(`${label} debe ser un número`);
+    }
+    if (value < 0) {
+      throw new ValidationError(`${label} debe ser un número mayor o igual a 0`);
+    }
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+      throw new ValidationError(`${label} debe ser un número. «${trimmed}» no es numérico`);
+    }
+    return Number(trimmed);
+  }
+  throw new ValidationError(`${label} debe ser un número`);
 }
 
 /**
@@ -158,7 +182,10 @@ export function parseGuarantorInput(input: unknown): UpdateGuarantorInput {
     throw new ValidationError("El nombre del fiador debe tener al menos 3 caracteres");
   }
 
-  const dpi = typeof body.dpi === "string" && body.dpi.trim().length > 0 ? body.dpi.trim() : undefined;
+  const dpi =
+    typeof body.dpi === "string" && body.dpi.trim().length > 0
+      ? normalizeDpi(body.dpi)
+      : undefined;
   const phone = typeof body.phone === "string" && body.phone.trim().length > 0 ? body.phone.trim() : undefined;
   const relationship = typeof body.relationship === "string" ? body.relationship.trim() : undefined;
   const notes = typeof body.notes === "string" ? body.notes.trim() : undefined;
@@ -171,10 +198,18 @@ export function parseGuarantorInput(input: unknown): UpdateGuarantorInput {
   if (typeof body.financialAssessment === "object" && body.financialAssessment !== null) {
     const f = body.financialAssessment as Record<string, unknown>;
     financialAssessment = {
-      monthlyIncome: Number(f.monthlyIncome ?? 0),
-      monthlyExpenses: Number(f.monthlyExpenses ?? 0),
-      existingDebtPayment: Number(f.existingDebtPayment ?? 0),
-      guaranteeValue: f.guaranteeValue ? Number(f.guaranteeValue) : undefined,
+      monthlyIncome: readNonNegativeAmount(f.monthlyIncome, "Los ingresos del fiador", true)!,
+      monthlyExpenses: readNonNegativeAmount(f.monthlyExpenses, "Los gastos del fiador", true)!,
+      existingDebtPayment: readNonNegativeAmount(
+        f.existingDebtPayment,
+        "Las deudas del fiador",
+        true,
+      )!,
+      guaranteeValue: readNonNegativeAmount(
+        f.guaranteeValue,
+        "La garantía del fiador",
+        false,
+      ),
     };
   }
 
